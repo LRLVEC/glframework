@@ -1,5 +1,7 @@
 #pragma once
+#ifdef _VR
 #include <GL/_OpenVR.h>
+#endif
 #ifdef _CUDA
 #include <CUDA/_CUDA.h>
 #include <CUDA/_CUDA_NBody_Common.h>
@@ -234,7 +236,7 @@ namespace OpenGL
 			particles(_groups << 10),
 			particlesData(&particles),
 			particlesBuffer(&particlesData),
-			trans({ {80.0,0.1,800},{0.8,0.8,0.1},{1},500.0 }),
+			trans({ {80.0,0.1,800},{0.8,0.8,0.1},{1},300.0 }),
 			renderer(&sm, &particlesBuffer, &trans),
 			computeParticles(&sm, &particlesBuffer, &particles)
 		{
@@ -306,6 +308,7 @@ namespace OpenGL
 			}
 		}
 	};
+#ifdef _VR
 	namespace VR
 	{
 		struct NBodyVR :OpenGL
@@ -710,6 +713,7 @@ namespace OpenGL
 			}
 		};
 	}
+#endif
 #ifdef _CUDA
 	struct NBodyCUDA : OpenGL
 	{

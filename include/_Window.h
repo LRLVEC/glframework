@@ -1,5 +1,5 @@
 #pragma once
-#include <GL/_OpenGL.h>
+#include <_OpenGL.h>
 #include <_String.h>
 #include <_List.h>
 
