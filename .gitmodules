@@ -1,0 +1,3 @@
+[submodule "dependencies/tiny-stl"]
+	path = dependencies/tiny-stl
+	url = https://github.com/LRLVEC/tiny-stl
