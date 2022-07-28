@@ -279,9 +279,9 @@ namespace OpenGL
 		{
 			switch (_button)
 			{
-				case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
-				case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
-				case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
+			case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
+			case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
+			case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
 			}
 		}
 		virtual void mousePos(double _x, double _y) override
@@ -297,14 +297,14 @@ namespace OpenGL
 		{
 			switch (_key)
 			{
-				case GLFW_KEY_ESCAPE:
-					if (_action == GLFW_PRESS)
-						glfwSetWindowShouldClose(_window, true);
-					break;
-				case GLFW_KEY_A:trans.key.refresh(0, _action); break;
-				case GLFW_KEY_D:trans.key.refresh(1, _action); break;
-				case GLFW_KEY_W:trans.key.refresh(2, _action); break;
-				case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+			case GLFW_KEY_ESCAPE:
+				if (_action == GLFW_PRESS)
+					glfwSetWindowShouldClose(_window, true);
+				break;
+			case GLFW_KEY_A:trans.key.refresh(0, _action); break;
+			case GLFW_KEY_D:trans.key.refresh(1, _action); break;
+			case GLFW_KEY_W:trans.key.refresh(2, _action); break;
+			case GLFW_KEY_S:trans.key.refresh(3, _action); break;
 			}
 		}
 	};
@@ -683,9 +683,9 @@ namespace OpenGL
 			{
 				switch (_button)
 				{
-					case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
-					case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
-					case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
+				case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
+				case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
+				case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
 				}
 			}
 			virtual void mousePos(double _x, double _y) override
@@ -701,14 +701,14 @@ namespace OpenGL
 			{
 				switch (_key)
 				{
-					case GLFW_KEY_ESCAPE:
-						if (_action == GLFW_PRESS)
-							glfwSetWindowShouldClose(_window, true);
-						break;
-					case GLFW_KEY_A:trans.key.refresh(0, _action); break;
-					case GLFW_KEY_D:trans.key.refresh(1, _action); break;
-					case GLFW_KEY_W:trans.key.refresh(2, _action); break;
-					case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+				case GLFW_KEY_ESCAPE:
+					if (_action == GLFW_PRESS)
+						glfwSetWindowShouldClose(_window, true);
+					break;
+				case GLFW_KEY_A:trans.key.refresh(0, _action); break;
+				case GLFW_KEY_D:trans.key.refresh(1, _action); break;
+				case GLFW_KEY_W:trans.key.refresh(2, _action); break;
+				case GLFW_KEY_S:trans.key.refresh(3, _action); break;
 				}
 			}
 		};
@@ -757,10 +757,13 @@ namespace OpenGL
 				float phi(2 * Math::Pi * randReal(mt));
 				float r = r0 * 5;
 				float vk(sqrtf(0.001f * (r * calcForce(r0) + blackHoleMass / r)));
+				float m;
+				if (randReal(mt) < 0.0001f)m = 1000 * randReal(mt);
+				else m = randReal(mt);
 				return
 				{
-					{r * cos(phi),1.0f * randReal(mt) - 0.5f,r * sin(phi)},
-					randReal(mt),
+					{r * cos(phi),0.2f * (randReal(mt) - 0.5f),r * sin(phi)},
+					m,
 					{-vk * sin(phi) ,0,vk * cos(phi) },
 				};
 			}
@@ -964,9 +967,9 @@ namespace OpenGL
 		{
 			switch (_button)
 			{
-				case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
-				case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
-				case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
+			case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
+			case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
+			case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
 			}
 		}
 		virtual void mousePos(double _x, double _y) override
@@ -982,20 +985,21 @@ namespace OpenGL
 		{
 			switch (_key)
 			{
-				case GLFW_KEY_ESCAPE:
-					if (_action == GLFW_PRESS)
-					{
-						particlesBufferCUDA.unmap();
-						glfwSetWindowShouldClose(_window, true);
-					}
-					break;
-				case GLFW_KEY_A:trans.key.refresh(0, _action); break;
-				case GLFW_KEY_D:trans.key.refresh(1, _action); break;
-				case GLFW_KEY_W:trans.key.refresh(2, _action); break;
-				case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+			case GLFW_KEY_ESCAPE:
+				if (_action == GLFW_PRESS)
+				{
+					particlesBufferCUDA.unmap();
+					glfwSetWindowShouldClose(_window, true);
+				}
+				break;
+			case GLFW_KEY_A:trans.key.refresh(0, _action); break;
+			case GLFW_KEY_D:trans.key.refresh(1, _action); break;
+			case GLFW_KEY_W:trans.key.refresh(2, _action); break;
+			case GLFW_KEY_S:trans.key.refresh(3, _action); break;
 			}
 		}
 	};
+#ifdef _VR
 	namespace VR
 	{
 		struct NBodyCUDAVR : OpenGL
@@ -1305,9 +1309,9 @@ namespace OpenGL
 			{
 				switch (_button)
 				{
-					case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
-					case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
-					case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
+				case GLFW_MOUSE_BUTTON_LEFT:trans.mouse.refreshButton(0, _action); break;
+				case GLFW_MOUSE_BUTTON_MIDDLE:trans.mouse.refreshButton(1, _action); break;
+				case GLFW_MOUSE_BUTTON_RIGHT:trans.mouse.refreshButton(2, _action); break;
 				}
 			}
 			virtual void mousePos(double _x, double _y) override
@@ -1323,20 +1327,21 @@ namespace OpenGL
 			{
 				switch (_key)
 				{
-					case GLFW_KEY_ESCAPE:
-						if (_action == GLFW_PRESS)
-						{
-							particlesBufferCUDA.unmap();
-							glfwSetWindowShouldClose(_window, true);
-						}
-						break;
-					case GLFW_KEY_A:trans.key.refresh(0, _action); break;
-					case GLFW_KEY_D:trans.key.refresh(1, _action); break;
-					case GLFW_KEY_W:trans.key.refresh(2, _action); break;
-					case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+				case GLFW_KEY_ESCAPE:
+					if (_action == GLFW_PRESS)
+					{
+						particlesBufferCUDA.unmap();
+						glfwSetWindowShouldClose(_window, true);
+					}
+					break;
+				case GLFW_KEY_A:trans.key.refresh(0, _action); break;
+				case GLFW_KEY_D:trans.key.refresh(1, _action); break;
+				case GLFW_KEY_W:trans.key.refresh(2, _action); break;
+				case GLFW_KEY_S:trans.key.refresh(3, _action); break;
 				}
 			}
 		};
 	}
+#endif
 #endif
 }

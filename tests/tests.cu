@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <_Window.h>
+#define _CUDA
 #include <_NBody.h>
+#include <CUDA/_CUDA_NBody_Device.cuh>
 #include <_Math.h>
 #include <_Time.h>
 
@@ -25,6 +27,38 @@ int main()
 	OpenGL::OpenGLInit init(4, 5);
 	Window::Window::Data winParameters
 	{
+		"NBodyCUDA",
+		{
+			{800,800},
+			true,false
+		}
+	};
+	Window::WindowManager wm(winParameters);
+	CUDA::OpenGLDeviceInfo intro;
+	intro.printInfo();
+	OpenGL::NBodyCUDA nBody(80 * 1, false);
+	::printf("Num particles: %d\n", nBody.particles.particles.length);
+
+	wm.init(0, &nBody);
+	init.printRenderer();
+	glfwSwapInterval(0);
+	//nBody.experiment();
+	FPS fps;
+	fps.refresh();
+	while (!wm.close())
+	{
+		wm.pullEvents();
+		wm.render();
+		wm.swapBuffers();
+		fps.refresh();
+		::printf("\r%.2lf    ", fps.fps);
+		//fps.printFPS(1);
+	}
+	return 0;
+
+	/*OpenGL::OpenGLInit init(4, 5);
+	Window::Window::Data winParameters
+	{
 		"NBody",
 		{
 			{800,800},
@@ -32,7 +66,7 @@ int main()
 		}
 	};
 	Window::WindowManager wm(winParameters);
-	OpenGL::NBody nBody(20);
+	OpenGL::NBody nBody(40);
 	wm.init(0, &nBody);
 	init.printRenderer();
 	glfwSwapInterval(0);
@@ -48,5 +82,5 @@ int main()
 		::printf("\r%.2lf    ", fps.fps);
 		//fps.printFPS(1);
 	}
-	return 0;
+	return 0;*/
 }
