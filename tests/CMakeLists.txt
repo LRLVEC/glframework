@@ -10,7 +10,7 @@ target_link_libraries(test PUBLIC ${GLFRAMEWORK_LIBRARIES})
 file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 message("Copy /shaders")
 add_custom_command(TARGET test PRE_BUILD
-	COMMAND mkdir -p $<TARGET_FILE_DIR:test>/shaders
+	COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:test>/shaders
 	# COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SHADERS} $<TARGET_FILE_DIR:test>/shaders/*
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${SHADERS} $<TARGET_FILE_DIR:test>/shaders
 	COMMAND_EXPAND_LISTS
