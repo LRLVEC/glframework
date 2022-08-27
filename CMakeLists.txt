@@ -1,13 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-
-if (CUDA_FOUND)
-project(glframework
-	LANGUAGES CXX CUDA
-)
-else()
-project(glframework
-	LANGUAGES CXX)
-endif()
+project(glframework LANGUAGES CXX)
 
 if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/CMakeLists.txt")
 	message(FATAL_ERROR
