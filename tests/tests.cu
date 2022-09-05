@@ -36,7 +36,7 @@ int main()
 	Window::WindowManager wm(winParameters);
 	CUDA::OpenGLDeviceInfo intro;
 	intro.printInfo();
-	OpenGL::NBodyCUDA nBody(80 * 1, false);
+	OpenGL::NBodyCUDA nBody(20 * 1, false);
 	::printf("Num particles: %d\n", nBody.particles.particles.length);
 
 	wm.init(0, &nBody);

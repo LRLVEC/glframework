@@ -1,21 +1,6 @@
 #pragma once
-#ifdef _WIN32
-#define GLEW_STATIC
-#include <GL/GLEW/glew.h>
-#include <GL/GLFW/glfw3.h>
-#pragma comment(lib,"OpenGL32.lib")
-#pragma comment(lib,"GL/glfw3.lib")
-#ifdef _DEBUG
-#pragma comment(lib,"GL/glew32sd.lib")
-//#pragma comment(lib,"GL/glfw3ddll.lib")
-#else
-#pragma comment(lib,"GL/glew32s.lib")
-//#pragma comment(lib,"GL/glfw3dll.lib")
-#endif
-#else
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#endif
 
 #include <_Vector.h>
 #include <_String.h>
