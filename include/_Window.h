@@ -2,6 +2,8 @@
 #include <_OpenGL.h>
 #include <_String.h>
 #include <_List.h>
+#include <stdexcept>
+#include <memory>
 
 namespace Window
 {
@@ -252,6 +254,18 @@ namespace Window
 			:Window(_data, _callback, true, true)
 		{
 		}
+		~Window()
+		{
+			if (window)
+			{
+				if (glfwWindowShouldClose(window))
+				{
+					printf("destroy window %p\n", window);
+					glfwDestroyWindow(window);
+				}
+				window = nullptr;
+			}
+		}
 		bool operator==(GLFWwindow* const _window) const
 		{
 			return window == _window;
@@ -331,14 +345,13 @@ namespace Window
 
 		WindowManager()
 		{
+			if (__windowManager)throw std::runtime_error{ "Cannot construct new WindowManager if there exists one!" };
 			__windowManager = this;
 		}
-		WindowManager(Window::Data const& _data)
-			:
-			windows((__windowManager = this, Window(_data, callbackFun)))
+		WindowManager(Window::Data const& _data) : WindowManager()
 		{
+			windows.pushBack(Window(_data, callbackFun));
 		}
-
 		void init(unsigned int _num, OpenGL::OpenGL* _openGL)
 		{
 			Window& window = windows[_num].data;
@@ -347,6 +360,10 @@ namespace Window
 		void createWindow(Window::Data const& _data)
 		{
 			windows.pushBack(Window(_data, callbackFun));
+		}
+		void makeCurrent(unsigned int _num)
+		{
+			windows[_num].data.makeCurrent();
 		}
 		Window& find(GLFWwindow* const _window)
 		{
@@ -358,7 +375,10 @@ namespace Window
 			([](Window const& _window)
 				{
 					glfwMakeContextCurrent(_window.window);
-					_window.openGL->run();
+					if (_window.openGL)
+					{
+						_window.openGL->run();
+					}
 					return true;
 				}
 			);
@@ -384,13 +404,24 @@ namespace Window
 				{
 					if (glfwWindowShouldClose(_window.window))
 					{
-						glfwDestroyWindow(_window.window);
+						//glfwDestroyWindow(_window.window);// move to deconstruction func
 						return false;
 					}
 					return true;
 				});
 			if (!windows.length)return true;
 			return false;
+		}
+		void closeAll()
+		{
+			windows.traverse
+			([](Window const& _window)
+				{
+					glfwMakeContextCurrent(_window.window);
+					glfwSetWindowShouldClose(_window.window, true);
+					return true;
+				}
+			);
 		}
 	};
 	WindowManager* WindowManager::__windowManager = nullptr;
