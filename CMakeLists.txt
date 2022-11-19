@@ -63,8 +63,26 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 
-# used to get GLFRAMEWORK_INCLUDE_DIRECTORIES quickly instead of adding them manually
-add_library(glframework STATIC src/glframework.cpp)
+include(CheckLanguage)
+check_language(CUDA)
+if (CMAKE_CUDA_COMPILER)
+	enable_language(CUDA)
+	set(CMAKE_CUDA_ARCHITECTURES 86)
+	set(CMAKE_CUDA_STANDARD 17)
+	set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+	set(CMAKE_CUDA_EXTENSIONS OFF)
+	add_library(glframework STATIC
+		src/_OpenGL.cpp
+		src/_Window.cpp
+		src/_CUDA_NBody_Device.cu
+	)
+else()
+	add_library(glframework STATIC
+		src/_OpenGL.cpp
+		src/_Window.cpp
+	)
+endif()
+
 target_include_directories(glframework PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES})
 target_link_libraries(glframework PUBLIC ${GLFRAMEWORK_LIBRARIES})
 

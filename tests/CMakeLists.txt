@@ -16,6 +16,7 @@ else()
 endif()
 target_include_directories(test PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES})
 target_link_libraries(test PUBLIC ${GLFRAMEWORK_LIBRARIES})
+target_link_libraries(test PUBLIC glframework)
 file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 message("Copy /shaders")
 add_custom_command(TARGET test PRE_BUILD

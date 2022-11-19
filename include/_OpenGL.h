@@ -518,10 +518,6 @@ namespace OpenGL
 
 
 	//OpenGLInit
-	bool OpenGLInit::initialized(false);
-	unsigned int OpenGLInit::versionMajor(4);
-	unsigned int OpenGLInit::versionMinor(5);
-
 	inline OpenGLInit::OpenGLInit()
 	{
 		if (!initialized)

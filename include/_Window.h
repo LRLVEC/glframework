@@ -286,7 +286,6 @@ namespace Window
 			glfwMakeContextCurrent(window);
 		}
 	};
-	bool Window::glewInitialized(false);
 
 	struct WindowManager
 	{
@@ -424,5 +423,4 @@ namespace Window
 			);
 		}
 	};
-	WindowManager* WindowManager::__windowManager = nullptr;
 }
