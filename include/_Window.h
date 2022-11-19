@@ -258,6 +258,7 @@ namespace Window
 		}
 		void init(OpenGL::OpenGL* _openGL)
 		{
+			makeCurrent();
 			openGL = _openGL;
 			callback.init(window);
 			openGL->init(size.size);
@@ -265,6 +266,10 @@ namespace Window
 		void setTitle(char const* _title)
 		{
 			glfwSetWindowTitle(window, _title);
+		}
+		void makeCurrent()
+		{
+			glfwMakeContextCurrent(window);
 		}
 	};
 	bool Window::glewInitialized(false);
@@ -274,30 +279,37 @@ namespace Window
 		static WindowManager* __windowManager;
 		static void frameSizeCallback(GLFWwindow* _window, int _w, int _h)
 		{
+			glfwMakeContextCurrent(_window);
 			__windowManager->find(_window).openGL->frameSize(_w, _h);
 		}
 		static void framePosCallback(GLFWwindow* _window, int _w, int _h)
 		{
+			glfwMakeContextCurrent(_window);
 			WindowManager::__windowManager->find(_window).openGL->framePos(_w, _h);
 		}
 		static void frameFocusCallback(GLFWwindow* _window, int _focused)
 		{
+			glfwMakeContextCurrent(_window);
 			WindowManager::__windowManager->find(_window).openGL->frameFocus(_focused);
 		}
 		static void mouseButtonCallback(GLFWwindow* _window, int _button, int _action, int _mods)
 		{
+			glfwMakeContextCurrent(_window);
 			WindowManager::__windowManager->find(_window).openGL->mouseButton(_button, _action, _mods);
 		}
 		static void mousePosCallback(GLFWwindow* _window, double _x, double _y)
 		{
+			glfwMakeContextCurrent(_window);
 			WindowManager::__windowManager->find(_window).openGL->mousePos(_x, _y);
 		}
 		static void mouseScrollCallback(GLFWwindow* _window, double _x, double _y)
 		{
+			glfwMakeContextCurrent(_window);
 			WindowManager::__windowManager->find(_window).openGL->mouseScroll(_x, _y);
 		}
 		static void keyCallback(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods)
 		{
+			glfwMakeContextCurrent(_window);
 			WindowManager::__windowManager->find(_window).openGL->key(_window, _key, _scancode, _action, _mods);
 		}
 		static constexpr Window::CallbackFun callbackFun
@@ -329,7 +341,8 @@ namespace Window
 
 		void init(unsigned int _num, OpenGL::OpenGL* _openGL)
 		{
-			windows[_num].data.init(_openGL);
+			Window& window = windows[_num].data;
+			window.init(_openGL);
 		}
 		void createWindow(Window::Data const& _data)
 		{

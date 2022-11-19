@@ -895,9 +895,9 @@ namespace OpenGL
 		CUDA::Buffer particlesBufferCUDA;
 		NBodyCUDA_Glue glue;
 
-		NBodyCUDA(unsigned int _blocks, bool _experiment)
+		NBodyCUDA(unsigned int _blocks, bool _experiment, String<char>const& _smPath)
 			:
-			sm(),
+			sm(_smPath),
 			particles(_blocks * 1024),
 			particlesData(&particles),
 			particlesBuffer(&particlesData),
