@@ -4,7 +4,7 @@
 #include <_NBody.h>
 #include <_Math.h>
 #include <_Time.h>
-
+#include <_ImGui.h>
 
 int main()
 {
@@ -37,6 +37,8 @@ int main()
 	intro.printInfo();
 	OpenGL::NBodyCUDA nBody(20 * 1, false, "./");
 	::printf("Num particles: %d\n", nBody.particles.particles.length);
+
+	GUI::ImGuiBase::init();
 
 	wm.init(0, &nBody);
 	init.printRenderer();

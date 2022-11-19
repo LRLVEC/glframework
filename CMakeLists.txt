@@ -39,6 +39,8 @@ set(TINY_STL_BUILD_TESTS OFF CACHE BOOL " " FORCE)
 add_subdirectory(dependencies/tiny-stl)
 mark_as_advanced(TINY_STL_BUILD_TESTS)
 list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tiny-stl/include")
+list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui")
+list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies")
 list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 if (MSVC)
 # Build glew from local repo
@@ -65,6 +67,18 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 
 include(CheckLanguage)
 check_language(CUDA)
+list(APPEND GLFRAMEWORK_SOURCES
+	"src/_OpenGL.cpp"
+	"src/_Window.cpp"
+	"src/_ImGui.cpp"
+	# imgui
+	"dependencies/imgui/imgui.cpp"
+	"dependencies/imgui/backends/imgui_impl_glfw.cpp"
+	"dependencies/imgui/backends/imgui_impl_opengl3.cpp"
+	"dependencies/imgui/imgui_draw.cpp"
+	"dependencies/imgui/imgui_tables.cpp"
+	"dependencies/imgui/imgui_widgets.cpp"
+)
 if (CMAKE_CUDA_COMPILER)
 	enable_language(CUDA)
 	include(FindCUDA/select_compute_arch)
@@ -85,17 +99,9 @@ if (CMAKE_CUDA_COMPILER)
 	set(CMAKE_CUDA_STANDARD 17)
 	set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 	set(CMAKE_CUDA_EXTENSIONS OFF)
-	add_library(glframework STATIC
-		src/_OpenGL.cpp
-		src/_Window.cpp
-		src/_CUDA_NBody_Device.cu
-	)
-else()
-	add_library(glframework STATIC
-		src/_OpenGL.cpp
-		src/_Window.cpp
-	)
+	list(APPEND GLFRAMEWORK_SOURCES "src/_CUDA_NBody_Device.cu")
 endif()
+add_library(glframework STATIC ${GLFRAMEWORK_SOURCES})
 
 target_include_directories(glframework PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES})
 target_link_libraries(glframework PUBLIC ${GLFRAMEWORK_LIBRARIES})

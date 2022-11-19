@@ -8,3 +8,6 @@
 	path = dependencies/glew
 	url = https://github.com/LRLVEC/glew-cmake.git
 	branch = glew-cmake-2.2.0-gitignore
+[submodule "dependencies/imgui"]
+	path = dependencies/imgui
+	url = https://github.com/LRLVEC/imgui.git
