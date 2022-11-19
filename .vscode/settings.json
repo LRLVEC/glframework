@@ -1,0 +1,4 @@
+{
+	"cmake.generator": "Ninja",
+	"cmake.buildDirectory": "${workspaceFolder}/build/main/ninja",
+}
