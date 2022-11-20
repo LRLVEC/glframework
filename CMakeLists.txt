@@ -65,6 +65,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 
+option(GLFRAMEWORK_BUILD_TESTS "Build glframework test programs" ON)
+option(GLFRAMEWORK_ENABLE_CUDA "Build glframework with cuda implemented NBody" OFF)
+
 include(CheckLanguage)
 check_language(CUDA)
 list(APPEND GLFRAMEWORK_SOURCES
@@ -79,7 +82,8 @@ list(APPEND GLFRAMEWORK_SOURCES
 	"dependencies/imgui/imgui_tables.cpp"
 	"dependencies/imgui/imgui_widgets.cpp"
 )
-if (CMAKE_CUDA_COMPILER)
+if (CMAKE_CUDA_COMPILER AND GLFRAMEWORK_ENABLE_CUDA)
+# if (FALSE)
 	enable_language(CUDA)
 	include(FindCUDA/select_compute_arch)
 	CUDA_DETECT_INSTALLED_GPUS(INSTALLED_GPU_CCS_1)
@@ -106,7 +110,6 @@ add_library(glframework STATIC ${GLFRAMEWORK_SOURCES})
 target_include_directories(glframework PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES})
 target_link_libraries(glframework PUBLIC ${GLFRAMEWORK_LIBRARIES})
 
-option(GLFRAMEWORK_BUILD_TESTS "Build glframework test programs" ON)
 
 if(GLFRAMEWORK_BUILD_TESTS)
 	add_subdirectory(tests)

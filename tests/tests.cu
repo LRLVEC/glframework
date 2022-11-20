@@ -1,87 +1,131 @@
 #include <cstdio>
-#include <_Window.h>
 #define _CUDA
 #include <_NBody.h>
-#include <_Math.h>
-#include <_Time.h>
 #include <_ImGui.h>
+
+namespace GUI
+{
+	struct TestGui :WindowGui
+	{
+		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		bool show_another_window = false;
+		bool should_create_new_sub_sim = false;
+		float f = 0.0f;
+		int counter = 0;
+
+		TestGui(Window::Window* _window) :WindowGui(_window) {}
+		virtual void gui()override
+		{
+			//printf("gui()\n");
+			makeCurrent();
+			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+			//ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			ImGui::Checkbox("Another Window", &show_another_window);
+
+			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+				counter++;
+			ImGui::SameLine();
+			ImGui::Text("counter = %d", counter);
+
+			if (ImGui::Button("New SubSim"))
+				should_create_new_sub_sim = true;
+
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::End();
+			//bool show_demo_window = false;
+			//ImGui::ShowDemoWindow(&show_demo_window);
+			if (show_another_window)
+			{
+				ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+				ImGui::Text("Hello from another window!");
+				if (ImGui::Button("Close Me"))
+					show_another_window = false;
+				ImGui::End();
+			}
+		}
+	};
+}
+
+struct Test
+{
+	Window::Window::Data mainWindowData;
+	GUI::UserInterface ui;
+	OpenGL::NBodyCUDA mainSim;
+	GUI::TestGui gui;
+	List<Pair<Window::Window*, OpenGL::NBodyCUDA*>> subSims;
+
+	Test()
+		:
+		mainWindowData{"MainSim",{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}},
+		ui(mainWindowData),
+		mainSim(10 * 1, false, String<char>("./")),
+		gui(nullptr)
+	{
+		// bind opengl before creating gui!
+		ui.bindOpenGLMain(&mainSim);
+		gui.create(ui.mainWindow);
+		ui.registerWindowGui(&gui);
+
+		::printf("Num particles: %d\n", mainSim.particles.particles.length);
+	}
+
+	Pair<Window::Window*, OpenGL::NBodyCUDA*> createSubSim()
+	{
+		Window::Window::Data subWindowData{"SubSim", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
+		Window::Window& w = ui.createWindow(subWindowData);
+		OpenGL::NBodyCUDA* subSim(new OpenGL::NBodyCUDA(10 * 1, false, String<char>("./")));
+		::printf("Num particles: %d\n", subSim->particles.particles.length);
+		ui.bindOpenGL(w, subSim);
+		return Pair<Window::Window*, OpenGL::NBodyCUDA*>(&w, subSim);
+	}
+
+	void deleteUnusedSubSims()
+	{
+		subSims.checkLambda
+		([this](Pair<Window::Window*, OpenGL::NBodyCUDA*>const& _pair)
+			{
+				if (!ui.wm.exists(_pair.data0))
+				{
+					delete _pair.data1;
+					return false;
+				}
+				return true;
+			}
+		);
+	}
+
+	void loop()
+	{
+		while (ui.update())
+		{
+			deleteUnusedSubSims();
+			if (gui.should_create_new_sub_sim)
+			{
+				gui.should_create_new_sub_sim = false;
+				subSims.pushBack(createSubSim());
+			}
+		}
+	}
+};
 
 int main()
 {
-	/*printf("%d\n", glfwInit());
-	Timer timer;
-	timer.begin();
-	GLFWwindow* window = glfwCreateWindow(500, 500, "ahh", NULL, NULL);
-	glfwMakeContextCurrent(window);
-	while (!glfwWindowShouldClose(window))
+	try
 	{
-		glClearColor(0.f, 1.f, 0.f, 0.f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glfwSwapBuffers(window);
-		glfwPollEvents();
+		printf("Fuck!\n");
+		Test test;
+		//test.ui.minimalLoop();
+		test.loop();
+		return 0;
 	}
-	timer.end();
-	timer.print();
-	glfwTerminate();*/
-	OpenGL::OpenGLInit init(4, 5);
-	Window::Window::Data winParameters
+	catch (const std::exception& e)
 	{
-		"NBodyCUDA",
-		{
-			{800,800},
-			true,false
-		}
-	};
-	Window::WindowManager wm(winParameters);
-	CUDA::OpenGLDeviceInfo intro;
-	intro.printInfo();
-	OpenGL::NBodyCUDA nBody(20 * 1, false, "./");
-	::printf("Num particles: %d\n", nBody.particles.particles.length);
-
-	GUI::ImGuiBase::init();
-
-	wm.init(0, &nBody);
-	init.printRenderer();
-	glfwSwapInterval(0);
-	//nBody.experiment();
-	FPS fps;
-	fps.refresh();
-	while (!wm.close())
-	{
-		wm.pullEvents();
-		wm.render();
-		wm.swapBuffers();
-		fps.refresh();
-		::printf("\r%.2lf    ", fps.fps);
-		//fps.printFPS(1);
+		printf("%s", e.what());
+		return 0;
 	}
-	return 0;
-
-	/*OpenGL::OpenGLInit init(4, 5);
-	Window::Window::Data winParameters
-	{
-		"NBody",
-		{
-			{800,800},
-			true,false
-		}
-	};
-	Window::WindowManager wm(winParameters);
-	OpenGL::NBody nBody(40);
-	wm.init(0, &nBody);
-	init.printRenderer();
-	glfwSwapInterval(0);
-	FPS fps;
-	fps.refresh();
-	int i(0);
-	while (!wm.close())
-	{
-		wm.pullEvents();
-		wm.render();
-		wm.swapBuffers();
-		fps.refresh();
-		::printf("\r%.2lf    ", fps.fps);
-		//fps.printFPS(1);
-	}
-	return 0;*/
 }

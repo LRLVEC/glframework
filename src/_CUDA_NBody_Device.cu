@@ -90,21 +90,23 @@ __global__ void forceCalc(NBodyCUDAParticle* particles, ExpData* expData)
 #undef dt
 NBodyCUDA_Glue::NBodyCUDA_Glue(unsigned int _blocks, float _dt, float _G)
 	:
-	blocks(_blocks)
+	blocks(_blocks),
+	stream(nullptr)
 {
 	unsigned int _num(1024 * _blocks);
+	cudaStreamCreate(&stream);
 	//cudaMemcpyToSymbol(&dt, &_dt, sizeof(float));
 	//cudaMemcpyToSymbol(&G, &_G, sizeof(float));
 	//cudaMemcpyToSymbol(&num, &_num, sizeof(unsigned int));
 }
 void NBodyCUDA_Glue::run()
 {
-	positionCalc << < dim3(blocks, 1, 1), dim3(1024, 1, 1) >> > (particles);
-	velocityCalc_Optimize1 << < dim3(blocks, 1, 1), dim3(1024, 1, 1) >> > (particles);
-	cudaDeviceSynchronize();
+	positionCalc << < dim3(blocks, 1, 1), dim3(1024, 1, 1), 0, stream >> > (particles);
+	velocityCalc_Optimize1 << < dim3(blocks, 1, 1), dim3(1024, 1, 1), 0, stream >> > (particles);
+	cudaStreamSynchronize(stream);
 }
 void NBodyCUDA_Glue::experiment(ExpData* expData)
 {
-	forceCalc << < dim3(blocks, 1, 1), dim3(1024, 1, 1) >> > (particles, expData);
-	cudaDeviceSynchronize();
+	forceCalc << < dim3(blocks, 1, 1), dim3(1024, 1, 1), 0, stream >> > (particles, expData);
+	cudaStreamSynchronize(stream);
 }

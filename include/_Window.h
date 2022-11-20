@@ -266,6 +266,10 @@ namespace Window
 				window = nullptr;
 			}
 		}
+		bool operator==(Window const& _window)const
+		{
+			return window == _window.window;
+		}
 		bool operator==(GLFWwindow* const _window) const
 		{
 			return window == _window;
@@ -281,9 +285,13 @@ namespace Window
 		{
 			glfwSetWindowTitle(window, _title);
 		}
-		void makeCurrent()
+		void makeCurrent()const
 		{
 			glfwMakeContextCurrent(window);
+		}
+		void swapBuffers()const
+		{
+			glfwSwapBuffers(window);
 		}
 	};
 
@@ -368,6 +376,10 @@ namespace Window
 		{
 			return windows.find(_window).data;
 		}
+		bool exists(Window* _window)const
+		{
+			return windows.id(*_window) >= 0;
+		}
 		void render()
 		{
 			windows.traverse
@@ -387,8 +399,8 @@ namespace Window
 			windows.traverse
 			([](Window const& _window)
 				{
-					glfwMakeContextCurrent(_window.window);
-					glfwSwapBuffers(_window.window);
+					_window.makeCurrent();
+					_window.swapBuffers();
 					return true;
 				}
 			);
