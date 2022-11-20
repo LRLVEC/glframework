@@ -2,7 +2,7 @@
 
 <img src="docs/readme/multi-window%20multi-simulation.png"/>
 
-This is a OpenGL based multi-window rendering and user interface system for Windows and Linux desktop. As the test demo shows, it can render multiple n-body simulations in different windows, with **one** global imgui (multi-context imgui is not officially supported yet) interface. It contains a light weight wrapper of OpenGL api, a multi-window manager and an interface for user-defined imgui UIs.
+This is an OpenGL based multi-window rendering and user interface system for Windows and Linux desktop. As the test demo shows, it can render multiple n-body simulations in different windows, with **one** global imgui (multi-context imgui is not officially supported yet) interface. It contains a light weight wrapper of OpenGL api, a multi-window manager and an interface for user-defined imgui UIs.
 # Requirements
 - CUDA is <span style="color:red">not</span> necessary for building this, but if supported, test demo will use it to accelerate.
 - A __C++17__ capable compiler. The following choices are recommended and have been tested:
