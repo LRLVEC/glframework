@@ -1,4 +1,8 @@
 {
 	"cmake.generator": "Ninja",
 	"cmake.buildDirectory": "${workspaceFolder}/build/main/ninja",
+	"files.associations": {
+		"*.H": "c",
+		"cstdio": "cpp"
+	},
 }

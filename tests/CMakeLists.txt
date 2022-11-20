@@ -1,12 +1,5 @@
 # set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -g -O2 -Wall")
-
-if (CMAKE_CUDA_COMPILER AND GLFRAMEWORK_ENABLE_CUDA)
-# if(FALSE)
-	enable_language(CUDA)
-	add_executable(test tests.cu ../dependencies/imgui/imgui_demo.cpp)
-else()
-	add_executable(test tests.cpp ../dependencies/imgui/imgui_demo.cpp)
-endif()
+add_executable(test tests.cpp ../dependencies/imgui/imgui_demo.cpp)
 target_include_directories(test PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES})
 target_link_libraries(test PUBLIC ${GLFRAMEWORK_LIBRARIES})
 target_link_libraries(test PUBLIC glframework)

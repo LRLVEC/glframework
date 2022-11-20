@@ -1,7 +1,10 @@
 #include <cstdio>
-#include <_Window.h>
 #include <_NBody.h>
-#include <_Math.h>
+#ifdef _CUDA
+using NBody = OpenGL::NBodyCUDA;
+#else
+using NBody = OpenGL::NBody;
+#endif
 #include <_ImGui.h>
 
 namespace GUI
@@ -10,13 +13,15 @@ namespace GUI
 	{
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool show_another_window = false;
+		bool should_create_new_sub_sim = false;
+		float f = 0.0f;
+		int counter = 0;
 
 		TestGui(Window::Window* _window) :WindowGui(_window) {}
 		virtual void gui()override
 		{
-			static float f = 0.0f;
-			static int counter = 0;
-
+			//printf("gui()\n");
+			makeCurrent();
 			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
 			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
@@ -31,6 +36,9 @@ namespace GUI
 			ImGui::SameLine();
 			ImGui::Text("counter = %d", counter);
 
+			if (ImGui::Button("New SubSim"))
+				should_create_new_sub_sim = true;
+
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
 			//bool show_demo_window = false;
@@ -44,40 +52,79 @@ namespace GUI
 				ImGui::End();
 			}
 		}
-		virtual void detach()override {}
 	};
 }
+
+struct Test
+{
+	Window::Window::Data mainWindowData;
+	GUI::UserInterface ui;
+	NBody mainSim;
+	GUI::TestGui gui;
+	List<Pair<Window::Window*, NBody*>> subSims;
+
+	Test()
+		:
+		mainWindowData{"MainSim",{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}},
+		ui(mainWindowData),
+		mainSim(10 * 1, false, String<char>("./")),
+		gui(nullptr)
+	{
+		// bind opengl before creating gui!
+		ui.bindOpenGLMain(&mainSim);
+		gui.create(ui.mainWindow);
+		ui.registerWindowGui(&gui);
+
+		::printf("Num particles: %d\n", mainSim.particles.particles.length);
+	}
+
+	Pair<Window::Window*, NBody*> createSubSim()
+	{
+		Window::Window::Data subWindowData{"SubSim", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
+		Window::Window& w = ui.createWindow(subWindowData);
+		NBody* subSim(new NBody(10 * 1, false, String<char>("./")));
+		::printf("Num particles: %d\n", subSim->particles.particles.length);
+		ui.bindOpenGL(w, subSim);
+		return Pair<Window::Window*, NBody*>(&w, subSim);
+	}
+
+	void deleteUnusedSubSims()
+	{
+		subSims.checkLambda
+		([this](Pair<Window::Window*, NBody*>const& _pair)
+			{
+				if (!ui.wm.exists(_pair.data0))
+				{
+					delete _pair.data1;
+					return false;
+				}
+				return true;
+			}
+		);
+	}
+
+	void loop()
+	{
+		while (ui.update())
+		{
+			deleteUnusedSubSims();
+			if (gui.should_create_new_sub_sim)
+			{
+				gui.should_create_new_sub_sim = false;
+				subSims.pushBack(createSubSim());
+			}
+		}
+	}
+};
 
 int main()
 {
 	try
 	{
 		printf("Fuck!\n");
-		Window::Window::Data mainWindowData
-		{
-			"Neural Ray Tracing",
-			{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}
-		};
-		GUI::UserInterface ui(mainWindowData);
-		OpenGL::NBody nBody1(20 * 1);
-		::printf("Num particles1: %d\n", nBody1.particles.particles.length);
-		ui.bindOpenGLMain(&nBody1);
-
-		GUI::TestGui testGui(ui.mainWindow);
-		ui.registerWindowGui(&testGui);
-
-		//Window::Window::Data smallWindowData
-		//{
-		//	"Normal",
-		//	{{400, 400}, /*resizable=*/true, /*fullscreen=*/false}
-		//};
-		//Window::Window& w = ui.createWindow(smallWindowData);
-		//OpenGL::NBodyCUDA nBody2(10 * 1, false, String<char>("./"));
-		//::printf("Num particles2: %d\n", nBody2.particles.particles.length);
-		//ui.bindOpenGL(w, &nBody2);
-
-		ui.mainLoop();
-		testGui.destroy();
+		Test test;
+		//test.ui.minimalLoop();
+		test.loop();
 		return 0;
 	}
 	catch (const std::exception& e)

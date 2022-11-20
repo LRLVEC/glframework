@@ -1,9 +1,11 @@
 [submodule "dependencies/tiny-stl"]
 	path = dependencies/tiny-stl
 	url = https://github.com/LRLVEC/tiny-stl
+	branch = main
 [submodule "dependencies/glfw"]
 	path = dependencies/glfw
 	url = https://github.com/LRLVEC/glfw
+	branch = tev
 [submodule "dependencies/glew"]
 	path = dependencies/glew
 	url = https://github.com/LRLVEC/glew-cmake.git
@@ -11,3 +13,4 @@
 [submodule "dependencies/imgui"]
 	path = dependencies/imgui
 	url = https://github.com/LRLVEC/imgui.git
+	branch = master
