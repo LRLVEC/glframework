@@ -260,7 +260,7 @@ namespace Window
 			{
 				if (glfwWindowShouldClose(window))
 				{
-					printf("destroy window %p\n", window);
+					// printf("destroy window %p\n", window);
 					glfwDestroyWindow(window);
 				}
 				window = nullptr;
