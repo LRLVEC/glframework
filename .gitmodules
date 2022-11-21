@@ -1,7 +1,7 @@
 [submodule "dependencies/tiny-stl"]
 	path = dependencies/tiny-stl
 	url = https://github.com/LRLVEC/tiny-stl
-	branch = main
+	branch = master
 [submodule "dependencies/glfw"]
 	path = dependencies/glfw
 	url = https://github.com/LRLVEC/glfw
