@@ -1,6 +1,8 @@
 # glframework: A light weight multi-window rendering and user interface framework for OpenGL applications
 
-<img src="docs/readme/multi-window%20multi-simulation.png" height = 250/> <img src="docs/readme/multi-window%20single-simulation.png" height = 250/>
+<img src="docs/readme/multi-window%20multi-simulation.png" height = 300/>
+
+<img src="docs/readme/multi-window%20single-simulation.png" height = 300/>
 
 This is an OpenGL based multi-window rendering and user interface system for Windows and Linux desktop. As the left picture shows, multiSim demo can render multiple n-body simulations in different windows, with **one** global imgui (multi-context imgui is not officially supported yet) interface. And the right picture shows that multiView demo can render multiple views of one n-body simulation. It contains a light weight wrapper of OpenGL api, a multi-window manager and an interface for user-defined imgui UIs.
 # Requirements
