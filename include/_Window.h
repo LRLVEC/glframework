@@ -1,5 +1,6 @@
 #pragma once
 #include <_OpenGL.h>
+
 #include <_String.h>
 #include <_List.h>
 #include <stdexcept>
@@ -260,7 +261,7 @@ namespace Window
 			{
 				if (glfwWindowShouldClose(window))
 				{
-					// printf("destroy window %p\n", window);
+					printf("Destroy window %p\n", window);
 					glfwDestroyWindow(window);
 				}
 				window = nullptr;
@@ -301,32 +302,32 @@ namespace Window
 		static void frameSizeCallback(GLFWwindow* _window, int _w, int _h)
 		{
 			glfwMakeContextCurrent(_window);
-			__windowManager->find(_window).openGL->frameSize(_w, _h);
+			__windowManager->find(_window).openGL->frameSize(_window, _w, _h);
 		}
 		static void framePosCallback(GLFWwindow* _window, int _w, int _h)
 		{
 			glfwMakeContextCurrent(_window);
-			WindowManager::__windowManager->find(_window).openGL->framePos(_w, _h);
+			WindowManager::__windowManager->find(_window).openGL->framePos(_window, _w, _h);
 		}
 		static void frameFocusCallback(GLFWwindow* _window, int _focused)
 		{
 			glfwMakeContextCurrent(_window);
-			WindowManager::__windowManager->find(_window).openGL->frameFocus(_focused);
+			WindowManager::__windowManager->find(_window).openGL->frameFocus(_window, _focused);
 		}
 		static void mouseButtonCallback(GLFWwindow* _window, int _button, int _action, int _mods)
 		{
 			glfwMakeContextCurrent(_window);
-			WindowManager::__windowManager->find(_window).openGL->mouseButton(_button, _action, _mods);
+			WindowManager::__windowManager->find(_window).openGL->mouseButton(_window, _button, _action, _mods);
 		}
 		static void mousePosCallback(GLFWwindow* _window, double _x, double _y)
 		{
 			glfwMakeContextCurrent(_window);
-			WindowManager::__windowManager->find(_window).openGL->mousePos(_x, _y);
+			WindowManager::__windowManager->find(_window).openGL->mousePos(_window, _x, _y);
 		}
 		static void mouseScrollCallback(GLFWwindow* _window, double _x, double _y)
 		{
 			glfwMakeContextCurrent(_window);
-			WindowManager::__windowManager->find(_window).openGL->mouseScroll(_x, _y);
+			WindowManager::__windowManager->find(_window).openGL->mouseScroll(_window, _x, _y);
 		}
 		static void keyCallback(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods)
 		{
@@ -425,12 +426,11 @@ namespace Window
 		}
 		void closeAll()
 		{
-			windows.traverse
-			([](Window const& _window)
+			windows.check([](Window const& _window)
 				{
 					glfwMakeContextCurrent(_window.window);
 					glfwSetWindowShouldClose(_window.window, true);
-					return true;
+					return false;
 				}
 			);
 		}

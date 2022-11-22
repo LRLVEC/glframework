@@ -59,14 +59,12 @@ else()
 	set(GLFRAMEWORK_LIBRARIES ${GLFRAMEWORK_LIBRARIES} GL ${GLEW_LIBRARIES} $<TARGET_OBJECTS:glfw_objects> ${CMAKE_DL_LIBS} CACHE INTERNAL "")
 endif()
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-option(GLFRAMEWORK_BUILD_TESTS "Build glframework test programs" ON)
-option(GLFRAMEWORK_ENABLE_CUDA "Build glframework with cuda implemented NBody" OFF)
+option(GLFRAMEWORK_BUILD_DEMOS "Build glframework test programs" ON)
+option(GLFRAMEWORK_ENABLE_CUDA "Build glframework with cuda implemented NBody" ON)
 
 include(CheckLanguage)
 check_language(CUDA)
@@ -112,6 +110,7 @@ target_include_directories(glframework PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES}
 target_link_libraries(glframework PUBLIC ${GLFRAMEWORK_LIBRARIES})
 
 
-if(GLFRAMEWORK_BUILD_TESTS)
-	add_subdirectory(tests)
+if(GLFRAMEWORK_BUILD_DEMOS)
+	add_subdirectory(demos/multiSim)
+	add_subdirectory(demos/multiView)
 endif()

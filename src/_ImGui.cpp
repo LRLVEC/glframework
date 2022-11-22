@@ -209,7 +209,6 @@ namespace GUI
 					windowGuiTable[wm.windows.id(*_windowGui->window)].pushBack(_windowGui);
 				}
 			);
-			wm.pullEvents();
 
 			// stuck!
 			/*ThreadPool{}.parallelFor<int>(0, windowGuiTable.length, [&](int id)
@@ -225,7 +224,7 @@ namespace GUI
 							_windowGui->gui();
 							_windowGui->draw();
 						}
-			);
+					);
 				}
 			);
 			wm.render();
@@ -236,6 +235,7 @@ namespace GUI
 				}
 			);
 			wm.swapBuffers();
+			wm.pullEvents();
 			return true;
 		}
 		return false;

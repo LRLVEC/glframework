@@ -1,7 +1,12 @@
 #pragma once
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-
+#ifdef _WIN32
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WGL
+#define GLFW_NATIVE_INCLUDE_NONE
+#include <GLFW/glfw3native.h>
+#endif
 #include <_Vector.h>
 #include <_String.h>
 #include <_Array.h>
@@ -38,12 +43,12 @@ namespace OpenGL
 	{
 		virtual void init(FrameScale const&) = 0;
 		virtual void run() {}
-		virtual void frameSize(int, int) = 0;
-		virtual void framePos(int, int) = 0;
-		virtual void frameFocus(int) = 0;
-		virtual void mouseButton(int, int, int) = 0;
-		virtual void mousePos(double, double) = 0;
-		virtual void mouseScroll(double, double) = 0;
+		virtual void frameSize(GLFWwindow*, int, int) = 0;
+		virtual void framePos(GLFWwindow*, int, int) = 0;
+		virtual void frameFocus(GLFWwindow*, int) = 0;
+		virtual void mouseButton(GLFWwindow*, int, int, int) = 0;
+		virtual void mousePos(GLFWwindow*, double, double) = 0;
+		virtual void mouseScroll(GLFWwindow*, double, double) = 0;
 		virtual void key(GLFWwindow*, int, int, int, int) = 0;
 	};
 	enum ShaderType
