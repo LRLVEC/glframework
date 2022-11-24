@@ -1,10 +1,10 @@
-#include <_RenderToTexture.h>
+#include <_TextureRenderer.h>
 #include <_ImGui.h>
 #include <_BMP.h>
 
 namespace GUI
 {
-	struct RenderToTextureGui :WindowGui
+	struct TextureRendererGui :WindowGui
 	{
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool show_another_window = false;
@@ -12,7 +12,7 @@ namespace GUI
 		float f = 0.0f;
 		int counter = 0;
 
-		RenderToTextureGui(Window::Window* _window) :WindowGui(_window) {}
+		TextureRendererGui(Window::Window* _window) :WindowGui(_window) {}
 		virtual void gui()override
 		{
 			//printf("gui()\n");
@@ -107,11 +107,11 @@ struct RenderToTextureTest
 	GUI::UserInterface ui;
 	OpenGL::SourceManager sm;
 	OpenGL::RenderToTexture renderer;
-	GUI::RenderToTextureGui gui;
+	GUI::TextureRendererGui gui;
 
 	RenderToTextureTest()
 		:
-		mainWindowData{"MainSim",{{720, 720}, /*resizable=*/true, /*fullscreen=*/false}},
+		mainWindowData{"RenderTexture",{{720, 720}, /*resizable=*/true, /*fullscreen=*/false}},
 		ui(mainWindowData),
 		sm(String<char>("./")),
 		renderer(&sm),

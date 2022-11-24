@@ -1,10 +1,23 @@
 # glframework: A light weight multi-window rendering and user interface framework for OpenGL applications
 
+
+This is an OpenGL based multi-window rendering and user interface system for Windows and Linux desktop. It contains a light weight wrapper of OpenGL api, a multi-window manager and an interface for user-defined imgui UIs.
+
+# Demo
+## Multi-simulation
 <img src="docs/readme/multi-window%20multi-simulation.png" height = 300/>
 
+MultiSim demo can render multiple n-body simulations in different windows, with **one** global imgui (multi-context imgui is not officially supported yet) interface.
+
+## Multi-view
 <img src="docs/readme/multi-window%20single-simulation.png" height = 300/>
 
-This is an OpenGL based multi-window rendering and user interface system for Windows and Linux desktop. As the top picture shows, multiSim demo can render multiple n-body simulations in different windows, with **one** global imgui (multi-context imgui is not officially supported yet) interface. And the bottom picture shows that multiView demo can render multiple views of one n-body simulation. It contains a light weight wrapper of OpenGL api, a multi-window manager and an interface for user-defined imgui UIs.
+MultiView demo can render multiple views of one n-body simulation.
+
+## Render texture
+<img src="docs/readme/render%20texture.png" height = 300/>
+RenderTexture demo can render a texture to the window. This is useful for a CUDA program or off-screen OpenGL program that writes rendering results to a texture.
+
 # Requirements
 - CUDA is <span style="color:red">not</span> necessary for building this, but if supported, demos will use it to accelerate.
 - A __C++17__ capable compiler. The following choices are recommended and have been tested:
