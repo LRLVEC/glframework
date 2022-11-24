@@ -32,6 +32,7 @@ namespace OpenGL
 		OpenGLInit();
 		OpenGLInit(unsigned int, unsigned int);
 
+		static void setWindowOpenGLVersion();
 		void setOpenGLVersion(unsigned int, unsigned int);
 		void printRenderer()
 		{
@@ -541,6 +542,15 @@ namespace OpenGL
 			glewExperimental = GL_TRUE;
 			setOpenGLVersion(_major, _minor);
 			initialized = true;
+		}
+	}
+	inline void OpenGLInit::setWindowOpenGLVersion()
+	{
+		if (initialized)
+		{
+			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, versionMajor);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, versionMinor);
 		}
 	}
 	inline void OpenGLInit::setOpenGLVersion(unsigned int _major, unsigned int _minor)

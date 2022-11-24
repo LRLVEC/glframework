@@ -229,8 +229,11 @@ namespace Window
 			callback(_callback.frame, _callback.input),
 			openGL(nullptr)
 		{
+			OpenGL::OpenGLInit::setWindowOpenGLVersion();
 			glfwWindowHint(GLFW_DECORATED, _decorated);
 			glfwWindowHint(GLFW_VISIBLE, _show);
+			// glfwWindowHint(GLFW_CONTEXT_RELEASE_BEHAVIOR, GLFW_RELEASE_BEHAVIOR_FLUSH);
+			glfwWindowHint(GLFW_CONTEXT_RELEASE_BEHAVIOR, GLFW_RELEASE_BEHAVIOR_NONE);
 			if (size.fullScreen.fullScreen)
 			{
 				monitor.search(size.size.w, size.size.h);
