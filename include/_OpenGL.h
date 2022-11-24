@@ -42,15 +42,15 @@ namespace OpenGL
 	//OpenGL class
 	struct OpenGL
 	{
-		virtual void init(FrameScale const&) = 0;
+		virtual void init(FrameScale const&) {}
 		virtual void run() {}
-		virtual void frameSize(GLFWwindow*, int, int) = 0;
-		virtual void framePos(GLFWwindow*, int, int) = 0;
-		virtual void frameFocus(GLFWwindow*, int) = 0;
-		virtual void mouseButton(GLFWwindow*, int, int, int) = 0;
-		virtual void mousePos(GLFWwindow*, double, double) = 0;
-		virtual void mouseScroll(GLFWwindow*, double, double) = 0;
-		virtual void key(GLFWwindow*, int, int, int, int) = 0;
+		virtual void frameSize(GLFWwindow*, int, int) {}
+		virtual void framePos(GLFWwindow*, int, int) {}
+		virtual void frameFocus(GLFWwindow*, int) {}
+		virtual void mouseButton(GLFWwindow*, int, int, int) {}
+		virtual void mousePos(GLFWwindow*, double, double) {}
+		virtual void mouseScroll(GLFWwindow*, double, double) {}
+		virtual void key(GLFWwindow*, int, int, int, int) {}
 	};
 	enum ShaderType
 	{
@@ -168,6 +168,7 @@ namespace OpenGL
 		{
 			bind();
 			bindBase();
+			unbind();
 		}
 		void bind()
 		{
@@ -193,16 +194,19 @@ namespace OpenGL
 		{
 			bind();
 			glBufferData(type, buffer->data->size(), buffer->data->pointer(), buffer->data->usage);
+			unbind();
 		}
 		void refreshData()
 		{
 			bind();
 			glBufferSubData(type, 0, buffer->data->size(), buffer->data->pointer());
+			unbind();
 		}
 		void refreshData(unsigned int _offset, unsigned int _size)
 		{
 			bind();
 			glBufferSubData(type, _offset, _size, (char*)buffer->data->pointer() + _offset);
+			unbind();
 		}
 	};
 	struct VertexAttrib
@@ -315,6 +319,7 @@ namespace OpenGL
 					_vertexAttrib->init();
 					return true;
 				});
+			unbind();
 		}
 		void bind()
 		{

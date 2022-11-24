@@ -1,23 +1,18 @@
-#include <cstdio>
-#include <_NBody.h>
-#ifdef _CUDA
-using NBodyImpl = OpenGL::NBodyCUDAImpl;
-#else
-using NBodyImpl = OpenGL::NBodyOpenGLImpl;
-#endif
+#include <_RenderToTexture.h>
 #include <_ImGui.h>
+#include <_BMP.h>
 
 namespace GUI
 {
-	struct MultiSimGui :WindowGui
+	struct RenderToTextureGui :WindowGui
 	{
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool show_another_window = false;
-		bool should_create_new_sub_sim = false;
+		bool should_create_new_view = false;
 		float f = 0.0f;
 		int counter = 0;
 
-		MultiSimGui(Window::Window* _window) :WindowGui(_window) {}
+		RenderToTextureGui(Window::Window* _window) :WindowGui(_window) {}
 		virtual void gui()override
 		{
 			//printf("gui()\n");
@@ -36,8 +31,8 @@ namespace GUI
 			ImGui::SameLine();
 			ImGui::Text("counter = %d", counter);
 
-			if (ImGui::Button("New SubSim"))
-				should_create_new_sub_sim = true;
+			if (ImGui::Button("New View"))
+				should_create_new_view = true;
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
@@ -55,80 +50,84 @@ namespace GUI
 	};
 }
 
-struct SingleSim
+namespace OpenGL
 {
-	OpenGL::NBodyData nbodyData;
-	NBodyImpl nbody;
-	OpenGL::NBodySingleViewRenderer renderer;
-	SingleSim(unsigned int _blocks, bool _experiment, OpenGL::SourceManager* _sm)
-		:
-		nbodyData(_blocks, _experiment, _sm),
-		nbody(&nbodyData, _sm),
-		renderer(&nbody, _sm)
+	struct RenderToTexture: OpenGL
 	{
-	}
-};
+		BMPData img;
+		TextureRendererProgram renderer;
+		
+		RenderToTexture(SourceManager* _sm)
+			:
+			img("./resources/Frostbite.bmp"),
+			renderer(_sm, { int(img.bmp.header.width), int(img.bmp.header.height) })
+		{
+			// this update method can be replaced by cuda functions or some off-screen rendering pipline.
+			renderer.frameTexture.data = &img;
+			renderer.frameConfig.dataInit(0, TextureInputRGB, TextureInputUByte);
+		}
+		virtual void init(FrameScale const& _size) override
+		{
+		}
+		virtual void run() override
+		{
+			FrameScale frameSize;
+			glfwGetWindowSize(glfwGetCurrentContext(), &frameSize.w, &frameSize.h);
+			if (frameSize.w && frameSize.h)
+			{
+				glViewport(0, 0, frameSize.w, frameSize.h);
+				glClearColor(1.0f, 1.0f, 0.0f, 0.0f);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				renderer.use();
+				renderer.run();
+			}
+		}
+		virtual void key(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods) override
+		{
+			if (glfwWindowShouldClose(_window))
+			{
+				return;
+			}
+			switch (_key)
+			{
+			case GLFW_KEY_ESCAPE:
+				if (_action == GLFW_PRESS)
+				{
+					glfwSetWindowShouldClose(_window, true);
+				}
+				break;
+			}
+		}
+	};
+}
 
-struct MultiSimTest
+struct RenderToTextureTest
 {
 	Window::Window::Data mainWindowData;
 	GUI::UserInterface ui;
 	OpenGL::SourceManager sm;
-	SingleSim mainSim;
-	GUI::MultiSimGui gui;
-	List<Pair<Window::Window*, SingleSim*>> subSims;
+	OpenGL::RenderToTexture renderer;
+	GUI::RenderToTextureGui gui;
 
-	MultiSimTest()
+	RenderToTextureTest()
 		:
-		mainWindowData{"MainSim",{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}},
+		mainWindowData{"MainSim",{{720, 720}, /*resizable=*/true, /*fullscreen=*/false}},
 		ui(mainWindowData),
 		sm(String<char>("./")),
-		mainSim(10 * 1, false, &sm),
+		renderer(&sm),
 		gui(nullptr)
 	{
 		// bind opengl before creating gui!
-		ui.bindOpenGLMain(&mainSim.renderer);
+		ui.bindOpenGLMain(&renderer);
 		gui.create(ui.mainWindow);
 		ui.registerWindowGui(&gui);
-
-		::printf("Num particles: %d\n", mainSim.nbodyData.particles.particles.length);
-	}
-
-	Pair<Window::Window*, SingleSim*> createSubSim()
-	{
-		Window::Window::Data subWindowData{"SubSim", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
-		Window::Window& w = ui.createWindow(subWindowData);
-		SingleSim* subSim(new SingleSim(10 * 1, false, &sm));
-		::printf("Num particles: %d\n", subSim->nbodyData.particles.particles.length);
-		ui.bindOpenGL(w, &subSim->renderer);
-		return Pair<Window::Window*, SingleSim*>(&w, subSim);
-	}
-
-	void deleteUnusedSubSims()
-	{
-		subSims.checkLambda
-		([this](Pair<Window::Window*, SingleSim*>const& _pair)
-			{
-				if (!ui.wm.exists(_pair.data0))
-				{
-					delete _pair.data1;
-					return false;
-				}
-				return true;
-			}
-		);
 	}
 
 	void loop()
 	{
 		while (ui.update())
 		{
-			deleteUnusedSubSims();
-			if (gui.should_create_new_sub_sim)
-			{
-				gui.should_create_new_sub_sim = false;
-				subSims.pushBack(createSubSim());
-			}
+			// handle gui update
 		}
 	}
 };
@@ -138,7 +137,7 @@ int main()
 	try
 	{
 		printf("Fuck!\n");
-		MultiSimTest test;
+		RenderToTextureTest test;
 		//test.ui.minimalLoop();
 		test.loop();
 		return 0;

@@ -71,7 +71,7 @@ struct MultiViewSim
 	}
 };
 
-struct MultiView
+struct MultiViewTest
 {
 	Window::Window::Data mainWindowData;
 	GUI::UserInterface ui;
@@ -79,7 +79,7 @@ struct MultiView
 	MultiViewSim mainSim;
 	GUI::MultiViewGui gui;
 
-	MultiView()
+	MultiViewTest()
 		:
 		mainWindowData{"Main View",{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}},
 		ui(mainWindowData),
@@ -121,7 +121,7 @@ int main()
 	try
 	{
 		printf("Fuck!\n");
-		MultiView test;
+		MultiViewTest test;
 		//test.ui.minimalLoop();
 		test.loop();
 		return 0;

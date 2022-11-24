@@ -1,0 +1,5 @@
+Program:	TextureRenderer
+{
+	Vertex		0
+	Fragment	0
+}
