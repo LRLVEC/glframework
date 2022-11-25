@@ -69,6 +69,7 @@ namespace GUI
 	{
 		if (imguiContext)
 		{
+			printf("Destroy Gui %p\n", imguiContext);
 			makeCurrent();
 			ImGui_ImplOpenGL3_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
@@ -181,6 +182,15 @@ namespace GUI
 	bool UserInterface::update()
 	{
 		glfwSwapInterval(0);
+		windowGuis.check([](GUI::WindowGui*const& _windowGui)
+			{
+				if (glfwWindowShouldClose(_windowGui->window->window))
+				{
+					_windowGui->destroy();
+					return false;
+				}
+				return true;
+			});
 		if (!wm.close())
 		{
 			if (&wm.windows[0].data != mainWindow)

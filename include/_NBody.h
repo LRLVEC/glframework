@@ -261,12 +261,6 @@ namespace OpenGL
 			trans.resize(_w, _h);
 			glViewport(0, 0, _w, _h);
 		}
-		virtual void framePos(GLFWwindow* _window, int, int)
-		{
-		}
-		virtual void frameFocus(GLFWwindow* _window, int)
-		{
-		}
 		virtual void mouseButton(GLFWwindow* _window, int _button, int _action, int _mods) override
 		{
 			switch (_button)
@@ -460,12 +454,6 @@ namespace OpenGL
 			{
 				getTrans(_window)->resize(_w, _h);
 			}
-		}
-		virtual void framePos(GLFWwindow* _window, int, int)
-		{
-		}
-		virtual void frameFocus(GLFWwindow* _window, int)
-		{
 		}
 		virtual void mouseButton(GLFWwindow* _window, int _button, int _action, int _mods) override
 		{

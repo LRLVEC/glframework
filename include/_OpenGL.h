@@ -21,6 +21,14 @@ namespace OpenGL
 	{
 		int w;
 		int h;
+		bool operator==(FrameScale const& a)const
+		{
+			return w == a.w && h == a.h;
+		}
+		bool operator!=(FrameScale const& a)const
+		{
+			return w != a.w || h != a.h;
+		}
 	};
 	//GLFW GLEW initialization
 	struct OpenGLInit
@@ -36,7 +44,7 @@ namespace OpenGL
 		void setOpenGLVersion(unsigned int, unsigned int);
 		void printRenderer()
 		{
-			::printf("Render GPU: %s\n",(char const*)glGetString(GL_RENDERER));
+			::printf("Render GPU: %s\n", (char const*)glGetString(GL_RENDERER));
 		}
 	};
 	//OpenGL class
@@ -182,12 +190,12 @@ namespace OpenGL
 		{
 			switch (type)
 			{
-				case AtomicCounterBuffer:
-				case ShaderStorageBuffer:
-				case TransformFeedbackBuffer:
-				case UniformBuffer:
-					glBindBufferBase(type, binding, buffer->buffer);
-					break;
+			case AtomicCounterBuffer:
+			case ShaderStorageBuffer:
+			case TransformFeedbackBuffer:
+			case UniformBuffer:
+				glBindBufferBase(type, binding, buffer->buffer);
+				break;
 			}
 		}
 		void dataInit()
@@ -311,13 +319,13 @@ namespace OpenGL
 			attribs.traverse([](VertexAttrib*& _vertexAttrib)
 				{
 					_vertexAttrib->bind();
-					return true;
+			return true;
 				});
 			bind();
 			attribs.traverse([](VertexAttrib*& _vertexAttrib)
 				{
 					_vertexAttrib->init();
-					return true;
+			return true;
 				});
 			unbind();
 		}
@@ -525,7 +533,86 @@ namespace OpenGL
 		void operate();
 	};
 
+	struct Transform2D
+	{
+		struct Data
+		{
+			struct Scroll
+			{
+				double increaseDelta;
+				double decreaseRatio;
+				double threshold;
+				double k;
+			};
+			struct Key
+			{
+				double ratio;
+			};
 
+			FrameScale size;
+			Scroll scroll;
+			Key key;
+			double scale;
+		};
+		struct Scroll
+		{
+			double increaseDelta;
+			double decreaseRatio;
+			double threshold;
+			double k;
+			double total;
+			Scroll();
+			Scroll(Data::Scroll const&);
+			void refresh(double);
+			double operate();
+		};
+		struct Key
+		{
+			bool left;
+			bool right;
+			bool up;
+			bool down;
+			double ratio;
+			Key();
+			Key(Data::Key const&);
+			void refresh(int, bool);
+			Math::vec2<double>operate();
+		};
+		struct Mouse
+		{
+			struct Pointer
+			{
+				double x;
+				double y;
+				bool valid;
+				Pointer();
+			};
+			Pointer now;
+			Pointer pre;
+			bool left;
+			bool middle;
+			bool right;
+			Mouse();
+			void refreshPos(double, double);
+			void refreshButton(int, bool);
+			Math::vec2<double> operate();
+		};
+
+		FrameScale size;
+		Scroll scroll;
+		Key key;
+		Mouse mouse;
+		Math::vec2<double>center;
+		double scale;
+		bool updated;
+
+		Transform2D();
+		Transform2D(Data const&);
+		void init(FrameScale const&);
+		Math::vec2<double>getPos(Math::vec2<double> const&, bool _add_center = true)const;
+		void resize(int, int);
+		void operate();
+	};
 
 
 	//OpenGLInit
@@ -634,32 +721,32 @@ namespace OpenGL
 		vertex.traverse([](Shader<VertexShader>& _shader)
 			{
 				_shader.init();
-				return true;
+		return true;
 			});
 		tessControl.traverse([](Shader<TessControlShader>& _shader)
 			{
 				_shader.init();
-				return true;
+		return true;
 			});
 		tessEvaluation.traverse([](Shader<TessEvaluationShader>& _shader)
 			{
 				_shader.init();
-				return true;
+		return true;
 			});
 		geometry.traverse([](Shader<GeometryShader>& _shader)
 			{
 				_shader.init();
-				return true;
+		return true;
 			});
 		fragment.traverse([](Shader<FragmentShader>& _shader)
 			{
 				_shader.init();
-				return true;
+		return true;
 			});
 		compute.traverse([](Shader<ComputeShader>& _shader)
 			{
 				_shader.init();
-				return true;
+		return true;
 			});
 	}
 	inline void ShaderManager::omit()
@@ -667,32 +754,32 @@ namespace OpenGL
 		vertex.traverse([](Shader<VertexShader>& _shader)
 			{
 				_shader.omit();
-				return true;
+		return true;
 			});
 		tessControl.traverse([](Shader<TessControlShader>& _shader)
 			{
 				_shader.omit();
-				return true;
+		return true;
 			});
 		tessEvaluation.traverse([](Shader<TessEvaluationShader>& _shader)
 			{
 				_shader.omit();
-				return true;
+		return true;
 			});
 		geometry.traverse([](Shader<GeometryShader>& _shader)
 			{
 				_shader.omit();
-				return true;
+		return true;
 			});
 		fragment.traverse([](Shader<FragmentShader>& _shader)
 			{
 				_shader.omit();
-				return true;
+		return true;
 			});
 		compute.traverse([](Shader<ComputeShader>& _shader)
 			{
 				_shader.omit();
-				return true;
+		return true;
 			});
 	}
 
@@ -738,12 +825,12 @@ namespace OpenGL
 		for (int c0(0); c0 < attach.length; ++c0)
 			switch (attach.data[c0].data0)
 			{
-				case 0:glAttachShader(program, shaders.vertex[attach.data[c0].data1].shader); break;
-				case 1:glAttachShader(program, shaders.tessControl[attach.data[c0].data1].shader); break;
-				case 2:glAttachShader(program, shaders.tessEvaluation[attach.data[c0].data1].shader); break;
-				case 3:glAttachShader(program, shaders.geometry[attach.data[c0].data1].shader); break;
-				case 4:glAttachShader(program, shaders.fragment[attach.data[c0].data1].shader); break;
-				case 5:glAttachShader(program, shaders.compute[attach.data[c0].data1].shader); break;
+			case 0:glAttachShader(program, shaders.vertex[attach.data[c0].data1].shader); break;
+			case 1:glAttachShader(program, shaders.tessControl[attach.data[c0].data1].shader); break;
+			case 2:glAttachShader(program, shaders.tessEvaluation[attach.data[c0].data1].shader); break;
+			case 3:glAttachShader(program, shaders.geometry[attach.data[c0].data1].shader); break;
+			case 4:glAttachShader(program, shaders.fragment[attach.data[c0].data1].shader); break;
+			case 5:glAttachShader(program, shaders.compute[attach.data[c0].data1].shader); break;
 			}
 	}
 	inline void Program::link()
@@ -824,8 +911,7 @@ namespace OpenGL
 				if (s < 2)break;
 				if (!sources.end().addSource(t0, shaders.findInThis(program + t0 + t1 + ".cpp").readText()))
 					::printf("Cannot read Program: %s\n", program.data);
-			}
-			while (s == 2);
+			} while (s == 2);
 		}
 	}
 	inline void SourceManager::deleteSource()
@@ -953,10 +1039,10 @@ namespace OpenGL
 	{
 		switch (_key)
 		{
-			case 0:left = _operation; break;
-			case 1:right = _operation; break;
-			case 2:up = _operation; break;
-			case 3:down = _operation; break;
+		case 0:left = _operation; break;
+		case 1:right = _operation; break;
+		case 2:up = _operation; break;
+		case 3:down = _operation; break;
 		}
 	}
 	inline Math::vec2<double> Transform::Key::operate()
@@ -985,6 +1071,7 @@ namespace OpenGL
 	}
 	inline void Transform::Mouse::refreshPos(double _x, double _y)
 	{
+		printf("%lf %lf %d\n", _x, _y, now.valid);
 		if (left)
 		{
 			if (now.valid)
@@ -1010,9 +1097,9 @@ namespace OpenGL
 	{
 		switch (_button)
 		{
-			case 0:	left = _operation; break;
-			case 1:	middle = _operation; break;
-			case 2:	right = _operation; break;
+		case 0:	left = _operation; break;
+		case 1:	middle = _operation; break;
+		case 2:	right = _operation; break;
 		}
 
 	}
@@ -1108,6 +1195,201 @@ namespace OpenGL
 		if (operated)
 		{
 			calcAns();
+			updated = true;
+		}
+	}
+
+
+
+	inline Transform2D::Scroll::Scroll()
+		:
+		increaseDelta(0.05),
+		decreaseRatio(0.95),
+		threshold(0.01),
+		k(1),
+		total(threshold)
+	{
+	}
+	inline Transform2D::Scroll::Scroll(Data::Scroll const& _scroll)
+		:
+		increaseDelta(_scroll.increaseDelta),
+		decreaseRatio(_scroll.decreaseRatio),
+		threshold(_scroll.threshold),
+		k(_scroll.k),
+		total(threshold)
+	{
+	}
+	inline void Transform2D::Scroll::refresh(double _d)
+	{
+		total += _d * increaseDelta;
+	}
+	inline double Transform2D::Scroll::operate()
+	{
+		if (abs(total) > threshold)
+		{
+			total *= decreaseRatio;
+			return total * k;
+		}
+		else return 0.0;
+	}
+
+	inline Transform2D::Key::Key()
+		:
+		left(false),
+		right(false),
+		up(false),
+		down(false),
+		ratio(0.05)
+	{
+	}
+	inline Transform2D::Key::Key(Data::Key const& _key)
+		:
+		left(false),
+		right(false),
+		up(false),
+		down(false),
+		ratio(_key.ratio)
+	{
+
+	}
+	inline void Transform2D::Key::refresh(int _key, bool _operation)
+	{
+		switch (_key)
+		{
+		case 0:left = _operation; break;
+		case 1:right = _operation; break;
+		case 2:up = _operation; break;
+		case 3:down = _operation; break;
+		}
+	}
+	inline Math::vec2<double> Transform2D::Key::operate()
+	{
+		Math::vec2<double>t
+		{
+			ratio * ((int)right - (int)left),
+			ratio * ((int)up - (int)down)
+		};
+		return t;
+	}
+
+	inline Transform2D::Mouse::Pointer::Pointer()
+		:
+		valid(false)
+	{
+	}
+	inline Transform2D::Mouse::Mouse()
+		:
+		now(),
+		pre(),
+		left(false),
+		middle(false),
+		right(false)
+	{
+	}
+	inline void Transform2D::Mouse::refreshPos(double _x, double _y)
+	{
+		if (left)
+		{
+			if (now.valid)
+			{
+				pre = now;
+				now.x = _x;
+				now.y = _y;
+			}
+			else
+			{
+				now.valid = true;
+				now.x = _x;
+				now.y = _y;
+			}
+		}
+		else
+		{
+			now.valid = false;
+			pre.valid = false;
+		}
+	}
+	inline void Transform2D::Mouse::refreshButton(int _button, bool _operation)
+	{
+		switch (_button)
+		{
+		case 0:	left = _operation; break;
+		case 1:	middle = _operation; break;
+		case 2:	right = _operation; break;
+		}
+	}
+	inline Math::vec2<double> Transform2D::Mouse::operate()
+	{
+		if (now.valid && pre.valid)
+		{
+			pre.valid = false;
+			return { pre.x - now.x ,pre.y - now.y };
+		}
+		else return { 0.0,0.0 };
+	}
+
+	inline Transform2D::Transform2D()
+		:size{ 800, 800 },
+		scroll(),
+		key(),
+		mouse(),
+		center(0),
+		scale(1.0),
+		updated(false)
+	{
+	}
+	inline Transform2D::Transform2D(Data const& _data)
+		:size(_data.size),
+		scroll(_data.scroll),
+		key(_data.key),
+		mouse(),
+		center(0),
+		scale(1.0),
+		updated(false)
+	{
+	}
+	inline void Transform2D::init(FrameScale const& _size)
+	{
+		size = _size;
+		updated = true;
+	}
+	inline Math::vec2<double> Transform2D::getPos(Math::vec2<double>const& _xy, bool _add_center)const
+	{
+		Math::vec2<double> window{ double(size.w), double(size.h) };
+		Math::vec2<double> r(_xy - window / 2);
+		r[1] = -r[1];// inverse y
+		r *= scale / size.w;
+		if (_add_center)
+		{
+			r += center;
+		}
+		return r;
+	}
+	inline void Transform2D::resize(int _w, int _h)
+	{
+		size.w = _w;
+		size.h = _h;
+		updated = true;
+	}
+	inline void Transform2D::operate()
+	{
+		double coeff(scroll.operate());
+		Math::vec2<double>dxy(key.operate() + mouse.operate() / size.w);
+		bool operated(false);
+		dxy /= scale;
+		if (coeff != 0.0)
+		{
+			scale *= exp(coeff);
+			//center += (scale - 1) * getPos({ mouse.now.x, mouse.now.y }, false);
+			operated = true;
+		}
+		if (dxy != 0.0)
+		{
+			center += dxy;
+			operated = true;
+		}
+		if (operated)
+		{
 			updated = true;
 		}
 	}

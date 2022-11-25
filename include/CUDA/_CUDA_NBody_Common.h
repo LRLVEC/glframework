@@ -12,7 +12,6 @@ struct ExpData
 	float r;
 	float force;
 };
-struct NBodyCUDA_Device;
 struct NBodyCUDA_Glue
 {
 	NBodyCUDAParticle* particles;

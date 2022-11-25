@@ -33,7 +33,6 @@ namespace OpenGL
 		Buffer trianglesBuffer;
 		BufferConfig bufferArray;
 		VertexAttrib positions;
-		bool updated;
 
 		TextureRendererProgram(SourceManager* _sourceManager, FrameScale const& _size)
 			:
@@ -43,8 +42,7 @@ namespace OpenGL
 			triangles(),
 			trianglesBuffer(&triangles),
 			bufferArray(&trianglesBuffer, ArrayBuffer),
-			positions(&bufferArray, 0, VertexAttrib::two, VertexAttrib::Float, false, sizeof(TriangleData::Vertex), 0, 0),
-			updated(false)
+			positions(&bufferArray, 0, VertexAttrib::two, VertexAttrib::Float, false, sizeof(TriangleData::Vertex), 0, 0)
 		{
 			init();
 			bufferArray.dataInit();
@@ -57,29 +55,20 @@ namespace OpenGL
 		}
 		FrameScale size()const
 		{
-			return{ int(frameConfig.width), int(frameConfig.height) };
+			return { int(frameConfig.width), int(frameConfig.height) };
 		}
 		virtual void initBufferData()override
 		{
 		}
 		virtual void run() override
 		{
-			if (updated)
-			{
-				// pixelPixel.bind();
-				// frameConfig.dataInit(0, TextureInputRGBA, TextureInputFloat);
-				updated = false;
-				// pixelPixel.unbind();
-			}
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
-		void resize(FrameScale const& _size)
+		void resizeTexture(FrameScale const& _size)
 		{
-			glViewport(0, 0, _size.w, _size.h);
 			frameConfig.resize(_size.w, _size.h);
-			// pixelPixel.dataInit();
 		}
 	};
 }

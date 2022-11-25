@@ -4,9 +4,6 @@
 #ifndef __CUDACC__ 
 #define __CUDACC__
 #endif
-#ifndef __CUDA_ARCH__ 
-#define __CUDA_ARCH__
-#endif
 #include <device_launch_parameters.h>
 #include <device_functions.h>
 #include <CUDA/helper_math.h>
