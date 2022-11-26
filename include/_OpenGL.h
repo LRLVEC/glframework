@@ -1071,7 +1071,6 @@ namespace OpenGL
 	}
 	inline void Transform::Mouse::refreshPos(double _x, double _y)
 	{
-		printf("%lf %lf %d\n", _x, _y, now.valid);
 		if (left)
 		{
 			if (now.valid)
