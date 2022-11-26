@@ -57,14 +57,14 @@ __global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, float2
 	}
 }
 
-MandelbrotFractalCUDA_Glue::MandelbrotFractalCUDA_Glue(OpenGL::MandelbrotFractalData* _fractalData, GLuint _texture)
+MandelbrotFractalCUDA_Glue::MandelbrotFractalCUDA_Glue(OpenGL::MandelbrotFractalData* _fractalData, OpenGL::TextureConfig<OpenGL::TextureStorage2D>* _textureConfig)
 	:
 	fractalData(_fractalData)
 {
 	cudaStreamCreate(&stream);
-	if (_texture)
+	if (_textureConfig)
 	{
-		resize(_texture);
+		resize(_textureConfig);
 	}
 }
 
@@ -74,35 +74,29 @@ MandelbrotFractalCUDA_Glue::~MandelbrotFractalCUDA_Glue()
 	cudaStreamDestroy(stream);
 }
 
-void MandelbrotFractalCUDA_Glue::resize(GLuint _texture)
+void MandelbrotFractalCUDA_Glue::resize(OpenGL::TextureConfig<OpenGL::TextureStorage2D>* _textureConfig)
 {
-	cudaGraphicsGLRegisterImage(&graphicsResources, _texture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
+	img.registerImage(*_textureConfig, cudaGraphicsRegisterFlagsSurfaceLoadStore);
 }
 
 void MandelbrotFractalCUDA_Glue::run()
 {
 	cudaStreamSynchronize(stream);
-	cudaGraphicsMapResources(1, &graphicsResources, stream);
-	cudaGraphicsSubResourceGetMappedArray(&imgArray, graphicsResources, 0, 0);
-
-	cudaResourceDesc resourceDesc;
-	memset(&resourceDesc, 0, sizeof(resourceDesc));
-	resourceDesc.resType = cudaResourceTypeArray;
-	resourceDesc.res.array.array = imgArray;
-	cudaCreateSurfaceObject(&imgSurface, &resourceDesc);
+	img.map(stream);
+	img.createArray(0);
+	img.createSurface();
 
 	dim3 grid = { unsigned((fractalData->size.w + 31) / 32), unsigned((fractalData->size.h + 31) / 32), 1 };
 	int2 size = make_int2(fractalData->size.w, fractalData->size.h);
 	float2 center = make_float2(fractalData->center[0], fractalData->center[1]);
-	runMandelbrotFractal << < grid, { 32, 32, 1 }, 0, stream >> > (imgSurface, size, center, fractalData->scale, fractalData->iter);
+	runMandelbrotFractal << < grid, { 32, 32, 1 }, 0, stream >> > (img.surface, size, center, fractalData->scale, fractalData->iter);
 
-	cudaDestroySurfaceObject(imgSurface);
-	cudaGraphicsUnmapResources(1, &graphicsResources, stream);
+	img.destroySurface();
+	img.unmap(stream);
 	cudaStreamSynchronize(stream);
 }
 
 void MandelbrotFractalCUDA_Glue::close()
 {
-	//cudaGraphicsUnmapResources(1, &graphicsResources);
-	cudaGraphicsUnregisterResource(graphicsResources);
+	img.unregisterResource();
 }

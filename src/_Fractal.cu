@@ -18,7 +18,7 @@ namespace OpenGL
 
 	void MandelbrotFractalCUDAImpl::resize(TextureConfig<TextureStorage2D>* _texture)
 	{
-		glue->resize(_texture->texture->texture);
+		glue->resize(_texture);
 	}
 
 	void MandelbrotFractalCUDAImpl::run()

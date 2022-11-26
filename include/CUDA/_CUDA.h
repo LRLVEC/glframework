@@ -1,5 +1,5 @@
 #pragma once
-#include <_OpenGL.h>
+#include <_Texture.h>
 // #include <cuda.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
@@ -231,6 +231,61 @@ namespace CUDA
 		{
 			return (CUdeviceptr)device;
 		}
+	};
+	// mapping OpenGL Texture, can read and write
+	struct GLTextureBase
+	{
+		cudaGraphicsResource_t graphicsResources;
+		void unregisterResource()
+		{
+			cudaGraphicsUnregisterResource(graphicsResources);
+		}
+		void map(cudaStream_t _stream)
+		{
+			cudaGraphicsMapResources(1, &graphicsResources, _stream);
+		}
+		void unmap(cudaStream_t _stream)
+		{
+			cudaGraphicsUnmapResources(1, &graphicsResources, _stream);
+		}
+	};
+	template<unsigned int dim>struct GLTexture :GLTextureBase
+	{
+		static_assert(dim&& dim < 4, "Dim must be one of 1, 2, 3!");
+	};
+	template<>struct GLTexture<1> :GLTextureBase
+	{
+	};
+	template<>struct GLTexture<2> :GLTextureBase
+	{
+		cudaArray_t array; // read only
+		cudaSurfaceObject_t surface; // read and write
+
+		void registerImage(OpenGL::TextureConfig<OpenGL::TextureStorage2D> const& _textureConfig, cudaGraphicsRegisterFlags _flags)
+		{
+			cudaGraphicsGLRegisterImage(&graphicsResources, _textureConfig.texture->texture, _textureConfig.type, _flags);
+		}
+		cudaArray_t createArray(unsigned int _level)
+		{
+			cudaGraphicsSubResourceGetMappedArray(&array, graphicsResources, 0, _level);
+			return array;
+		}
+		cudaSurfaceObject_t createSurface()
+		{
+			cudaResourceDesc resourceDesc;
+			memset(&resourceDesc, 0, sizeof(resourceDesc));
+			resourceDesc.resType = cudaResourceTypeArray;
+			resourceDesc.res.array.array = array;
+			cudaCreateSurfaceObject(&surface, &resourceDesc);
+			return surface;
+		}
+		void destroySurface()
+		{
+			cudaDestroySurfaceObject(surface);
+		}
+	};
+	template<>struct GLTexture<3> :GLTextureBase
+	{
 	};
 	struct CubeMap
 	{
