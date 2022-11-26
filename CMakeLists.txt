@@ -81,7 +81,7 @@ list(APPEND GLFRAMEWORK_SOURCES
 	"dependencies/imgui/imgui_widgets.cpp"
 )
 if (CMAKE_CUDA_COMPILER AND GLFRAMEWORK_ENABLE_CUDA)
-	add_definitions(-D_CUDA)
+	list(APPEND GLFRAMEWORK_DEFINITIONS -D_CUDA)
 	enable_language(CUDA)
 	include(FindCUDA/select_compute_arch)
 	CUDA_DETECT_INSTALLED_GPUS(INSTALLED_GPU_CCS_1)
@@ -108,7 +108,7 @@ if (CMAKE_CUDA_COMPILER AND GLFRAMEWORK_ENABLE_CUDA)
 	list(APPEND GLFRAMEWORK_SOURCES "src/_Fractal.cu")
 endif()
 add_library(glframework STATIC ${GLFRAMEWORK_SOURCES})
-
+target_compile_definitions(glframework PUBLIC ${GLFRAMEWORK_DEFINITIONS})
 target_include_directories(glframework PUBLIC ${GLFRAMEWORK_INCLUDE_DIRECTORIES})
 target_link_libraries(glframework PUBLIC ${GLFRAMEWORK_LIBRARIES})
 
