@@ -64,14 +64,12 @@ namespace OpenGL
 			CompareMode_CompareRefToTexture = GL_COMPARE_REF_TO_TEXTURE,
 			CompareMode_None = GL_NONE,
 
-			MinFilter_Nearest = GL_NEAREST,
-			MinFilter_Linear = GL_LINEAR,
-			MinFilter_NearestMipmapNearest = GL_NEAREST_MIPMAP_NEAREST,
-			MinFilter_LinearMipmapNearest = GL_LINEAR_MIPMAP_NEAREST,
-			MinFilter_NearestMipmapLinear = GL_NEAREST_MIPMAP_LINEAR,
-			MinFilter_LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR,
-			MagFilter_Nearest = GL_NEAREST,
-			MagFilter_Linear = GL_LINEAR,
+			Filter_Nearest = GL_NEAREST,
+			Filter_Linear = GL_LINEAR,
+			Filter_NearestMipmapNearest = GL_NEAREST_MIPMAP_NEAREST,
+			Filter_LinearMipmapNearest = GL_LINEAR_MIPMAP_NEAREST,
+			Filter_NearestMipmapLinear = GL_NEAREST_MIPMAP_LINEAR,
+			Filter_LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR,
 
 			Wrap_ClampToEdge = GL_CLAMP_TO_EDGE,
 			Wrap_ClampToBorder = GL_CLAMP_TO_BORDER,
@@ -220,6 +218,10 @@ namespace OpenGL
 		{
 			glBindTextureUnit(binding, texture);
 		}
+		void del()
+		{
+			glDeleteTextures(1, &texture);
+		}
 	};
 	struct TextureConfigBase
 	{
@@ -255,6 +257,11 @@ namespace OpenGL
 		void parameteri(TextureParameter::Name _pname, TextureParameter::Parameter _para)
 		{
 			glTextureParameteri(texture->texture, _pname, _para);
+		}
+		void del()
+		{
+			texture->del();
+			unBind();
 		}
 	};
 	template<TextureStorageType>struct TextureConfig :TextureConfigBase

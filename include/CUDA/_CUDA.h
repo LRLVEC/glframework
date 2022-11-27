@@ -236,9 +236,11 @@ namespace CUDA
 	struct GLTextureBase
 	{
 		cudaGraphicsResource_t graphicsResources;
+		GLTextureBase() :graphicsResources(nullptr) {}
 		void unregisterResource()
 		{
 			cudaGraphicsUnregisterResource(graphicsResources);
+			graphicsResources = nullptr;
 		}
 		void map(cudaStream_t _stream)
 		{
@@ -261,6 +263,7 @@ namespace CUDA
 		cudaArray_t array; // read only
 		cudaSurfaceObject_t surface; // read and write
 
+		GLTexture() :array(nullptr), surface(0) {}
 		void registerImage(OpenGL::TextureConfig<OpenGL::TextureStorage2D> const& _textureConfig, cudaGraphicsRegisterFlags _flags)
 		{
 			cudaGraphicsGLRegisterImage(&graphicsResources, _textureConfig.texture->texture, _textureConfig.type, _flags);
@@ -282,6 +285,7 @@ namespace CUDA
 		void destroySurface()
 		{
 			cudaDestroySurfaceObject(surface);
+			surface = 0;
 		}
 	};
 	template<>struct GLTexture<3> :GLTextureBase
@@ -470,4 +474,6 @@ namespace CUDA
 			::printf("\n");
 		}
 	};
+
+
 }
