@@ -12,6 +12,7 @@ namespace OpenGL
 		double scale;
 		int iter;
 		bool useDouble;
+		bool useDoublePre;
 
 		MandelbrotFractalData(FrameScale const& _size)
 			:
@@ -19,7 +20,8 @@ namespace OpenGL
 			center{ -0.5, 0. },
 			scale(0.3),
 			iter(2000),
-			useDouble(false)
+			useDouble(false),
+			useDoublePre(false)
 		{
 		}
 		void update(Transform2D const& _trans)
@@ -81,10 +83,11 @@ namespace OpenGL
 					fractal->resize(&renderer.frameConfig);
 				}
 				trans.operate();
-				if (trans.updated)
+				if (trans.updated || fractal->fractalData->useDouble != fractal->fractalData->useDoublePre)
 				{
 					trans.updated = false;
 					fractal->fractalData->update(trans);
+					fractal->fractalData->useDoublePre = fractal->fractalData->useDouble;
 					fractal->run();
 				}
 				glViewport(0, 0, frameSize.w, frameSize.h);
