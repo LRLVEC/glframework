@@ -53,12 +53,12 @@ __device__ double mandelbrotFractalKernel(double2 c, int iter)
 	}
 	if (l > iter - 1) return 0.;
 
-	double sl = l - std::log(std::log(dot(z, z))) + 4.;
+	double sl = l - log2(log2(dot(z, z))) + 4.;
 	return sl;
 }
 
 // 32 * 32 block
-__global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, double2 _center, double scale, int iter, bool useDouble = false)
+__global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, double2 _center, float scale, int iter, bool useDouble = false)
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -69,19 +69,18 @@ __global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, double
 		for (int m = 0; m < AA; m++)
 			for (int n = 0; n < AA; n++)
 			{
+				float l;
 				if (useDouble)
 				{
 					double2 p = _center + make_double2(x - _size.x / 2 + m / double(AA), _size.y / 2 - y + n / double(AA)) / (double(_size.x) * scale);
-					double l = 3. + mandelbrotFractalKernel(p, iter) * 0.15;
-					// col += 0.5f * (1.f + make_float3(std::cos(l + 0.f), std::cos(l + 0.6f), std::cos(l + 1.f)));
-					col += make_float3(0.5 * (1. + make_double3(cos(l + 0.), cos(l + 0.6), cos(l + 1.))));
+					l = 3. + mandelbrotFractalKernel(p, iter) * 0.15;
 				}
 				else
 				{
 					float2 p = make_float2(_center) + make_float2(x - _size.x / 2 + m / float(AA), _size.y / 2 - y + n / float(AA)) / (float(_size.x) * scale);
-					float l = 3.f + mandelbrotFractalKernel(p, iter) * 0.15f;
-					col += 0.5f * (1.f + make_float3(__cosf(l + 0.f), __cosf(l + 0.6f), __cosf(l + 1.f)));
+					l = 3.f + mandelbrotFractalKernel(p, iter) * 0.15f;
 				}
+				col += 0.5f * (1.f + make_float3(__cosf(l + 0.f), __cosf(l + 0.6f), __cosf(l + 1.f)));
 			}
 		col /= float(AA * AA);
 		surf2Dwrite(make_float4(col, 1.f), img, x * sizeof(float4), y);
