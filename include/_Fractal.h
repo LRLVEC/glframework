@@ -8,16 +8,18 @@ namespace OpenGL
 	struct MandelbrotFractalData
 	{
 		FrameScale size;
-		Math::vec2<float> center;
-		float scale;
+		Math::vec2<double> center;
+		double scale;
 		int iter;
+		bool useDouble;
 
 		MandelbrotFractalData(FrameScale const& _size)
 			:
 			size(_size),
-			center{ -0.5, 0 },
-			scale(0.3f),
-			iter(2000)
+			center{ -0.5, 0. },
+			scale(0.3),
+			iter(2000),
+			useDouble(false)
 		{
 		}
 		void update(Transform2D const& _trans)

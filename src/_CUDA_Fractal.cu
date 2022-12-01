@@ -6,12 +6,10 @@
 #include <device_functions.h>
 #include <cuda_gl_interop.h>
 #include <CUDA/helper_math.h>
-#include <cuda/std/complex>
 
 // detailed impl of glue
 
-using complex = cuda::std::complex<float>;
-
+// float version
 __device__ float mandelbrotFractalKernel(float2 c, int iter)
 {
 	float c2 = dot(c, c);
@@ -35,8 +33,32 @@ __device__ float mandelbrotFractalKernel(float2 c, int iter)
 	return sl;
 }
 
+// double version
+__device__ double mandelbrotFractalKernel(double2 c, int iter)
+{
+	double c2 = dot(c, c);
+	// skip computation inside M1 - https://iquilezles.org/articles/mset1bulb
+	if (256. * c2 * c2 - 96. * c2 + 32. * c.x - 3. < 0.) return 0.;
+	// skip computation inside M2 - https://iquilezles.org/articles/mset2bulb
+	if (16. * (c2 + 2. * c.x + 1.) - 1. < 0.) return 0.;
+
+	int B = iter / 2;//256.f;
+	double l = 0.;
+	double2 z = make_double2(0.);
+	for (int i = 0; i < iter; i++)
+	{
+		z = make_double2(z.x * z.x - z.y * z.y, 2. * z.x * z.y) + c;
+		if (dot(z, z) > (B * B)) break;
+		l += 1.;
+	}
+	if (l > iter - 1) return 0.;
+
+	double sl = l - std::log(std::log(dot(z, z))) + 4.;
+	return sl;
+}
+
 // 32 * 32 block
-__global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, float2 _center, float scale, int iter)
+__global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, double2 _center, double scale, int iter, bool useDouble = false)
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -47,10 +69,19 @@ __global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, float2
 		for (int m = 0; m < AA; m++)
 			for (int n = 0; n < AA; n++)
 			{
-				float2 p = _center + make_float2(x - _size.x / 2 + m / float(AA), _size.y / 2 - y + n / float(AA)) / (float(_size.x) * scale);
-				float l = 3.f + mandelbrotFractalKernel(p, iter) * 0.15f;
-
-				col += 0.5f * (1.f + make_float3(__cosf(l + 0.f), __cosf(l + 0.6f), __cosf(l + 1.f)));
+				if (useDouble)
+				{
+					double2 p = _center + make_double2(x - _size.x / 2 + m / double(AA), _size.y / 2 - y + n / double(AA)) / (double(_size.x) * scale);
+					double l = 3. + mandelbrotFractalKernel(p, iter) * 0.15;
+					// col += 0.5f * (1.f + make_float3(std::cos(l + 0.f), std::cos(l + 0.6f), std::cos(l + 1.f)));
+					col += make_float3(0.5 * (1. + make_double3(cos(l + 0.), cos(l + 0.6), cos(l + 1.))));
+				}
+				else
+				{
+					float2 p = make_float2(_center) + make_float2(x - _size.x / 2 + m / float(AA), _size.y / 2 - y + n / float(AA)) / (float(_size.x) * scale);
+					float l = 3.f + mandelbrotFractalKernel(p, iter) * 0.15f;
+					col += 0.5f * (1.f + make_float3(__cosf(l + 0.f), __cosf(l + 0.6f), __cosf(l + 1.f)));
+				}
 			}
 		col /= float(AA * AA);
 		surf2Dwrite(make_float4(col, 1.f), img, x * sizeof(float4), y);
@@ -88,8 +119,8 @@ void MandelbrotFractalCUDA_Glue::run()
 
 	dim3 grid = { unsigned((fractalData->size.w + 31) / 32), unsigned((fractalData->size.h + 31) / 32), 1 };
 	int2 size = make_int2(fractalData->size.w, fractalData->size.h);
-	float2 center = make_float2(fractalData->center[0], fractalData->center[1]);
-	runMandelbrotFractal << < grid, { 32, 32, 1 }, 0, stream >> > (img.surface, size, center, fractalData->scale, fractalData->iter);
+	double2 center = make_double2(fractalData->center[0], fractalData->center[1]);
+	runMandelbrotFractal << < grid, { 32, 32, 1 }, 0, stream >> > (img.surface, size, center, fractalData->scale, fractalData->iter, fractalData->useDouble);
 
 	img.destroySurface();
 	img.unmap(stream);

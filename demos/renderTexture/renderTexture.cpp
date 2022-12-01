@@ -28,7 +28,7 @@ namespace GUI
 
 			ImGui::Text("Scale: %e", fractalData->scale);             // Display some text (you can use a format strings too)
 			ImGui::Text("Center: %f, %f", fractalData->center[0], fractalData->center[1]);
-			//ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			ImGui::Checkbox("Use double precision", &fractalData->useDouble);
 			//ImGui::Checkbox("Another Window", &show_another_window);
 
 			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
