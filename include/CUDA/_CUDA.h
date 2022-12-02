@@ -7,6 +7,26 @@
 #include <time.h>
 #include <random>
 #include <_BMP.h>
+#include <iostream>
+
+#ifndef CUDA_CHECK_THROW
+#define NotDefinedCUDA_CHECK_THROW
+#define STRINGIFY(x) #x
+#define STR(x) STRINGIFY(x)
+#define FILE_LINE __FILE__ ":" STR(__LINE__)
+#define CUDA_CHECK_THROW(x)\
+do {\
+	cudaError_t result = x;\
+	if (result != cudaSuccess)\
+		throw std::runtime_error(std::string(FILE_LINE " " #x " failed with error ") + cudaGetErrorString(result));\
+} while(0)
+#define CUDA_CHECK_PRINT(x)\
+do {\
+	cudaError_t result = x;\
+	if (result != cudaSuccess)\
+		std::cout << FILE_LINE " " #x " failed with error " << cudaGetErrorString(result) << std::endl;\
+} while(0)
+#endif
 
 namespace CUDA
 {
@@ -79,7 +99,7 @@ namespace CUDA
 			host(nullptr)
 		{
 			resize(sizeof(T));
-			if (copy)cudaMemcpy(device, &a, size, cudaMemcpyHostToDevice);
+			if (copy)CUDA_CHECK_THROW(cudaMemcpy(device, &a, size, cudaMemcpyHostToDevice));
 		}
 		~Buffer()
 		{
@@ -89,7 +109,7 @@ namespace CUDA
 				case Device:
 				{
 					freeHost();
-					cudaFree(device);
+					CUDA_CHECK_PRINT(cudaFree(device));
 					break;
 				}
 				case GLinterop:
@@ -100,7 +120,7 @@ namespace CUDA
 				}
 				case ZeroCopy:
 				{
-					cudaFreeHost(host);
+					CUDA_CHECK_PRINT(cudaFreeHost(host));
 					break;
 				}
 				}
@@ -134,15 +154,15 @@ namespace CUDA
 			{
 			case Device:
 			{
-				cudaFree(device);
-				cudaMalloc(&device, _size);
+				CUDA_CHECK_THROW(cudaFree(device));
+				CUDA_CHECK_THROW(cudaMalloc(&device, _size));
 				break;
 			}
 			case ZeroCopy:
 			{
-				cudaFreeHost(host);
-				cudaHostAlloc(&host, _size, cudaHostAllocPortable | cudaHostAllocMapped);
-				cudaHostGetDevicePointer(&device, host, 0);
+				CUDA_CHECK_THROW(cudaFreeHost(host));
+				CUDA_CHECK_THROW(cudaHostAlloc(&host, _size, cudaHostAllocPortable | cudaHostAllocMapped));
+				CUDA_CHECK_THROW(cudaHostGetDevicePointer(&device, host, 0));
 				break;
 			}
 			case GLinterop:break;
@@ -151,7 +171,7 @@ namespace CUDA
 		void resize(GLuint _gl)
 		{
 			//bug here!!!!!
-			cudaGraphicsGLRegisterBuffer(&graphics, gl = _gl, cudaGraphicsRegisterFlagsNone);
+			CUDA_CHECK_THROW(cudaGraphicsGLRegisterBuffer(&graphics, gl = _gl, cudaGraphicsRegisterFlagsNone));
 			//map();
 			//unmap();
 		}
@@ -164,8 +184,8 @@ namespace CUDA
 		{
 			if (type == GLinterop)
 			{
-				cudaGraphicsMapResources(1, &graphics);
-				cudaGraphicsResourceGetMappedPointer(&device, &size, graphics);
+				CUDA_CHECK_THROW(cudaGraphicsMapResources(1, &graphics));
+				CUDA_CHECK_THROW(cudaGraphicsResourceGetMappedPointer(&device, &size, graphics));
 			}
 			return device;
 		}
@@ -173,10 +193,10 @@ namespace CUDA
 		{
 			if (type == GLinterop)
 			{
-				cudaGraphicsUnmapResources(1, &graphics);
+				CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphics));
 				device = nullptr;
 			}
-			else cudaStreamSynchronize(0);
+			else CUDA_CHECK_THROW(cudaStreamSynchronize(0));
 		}
 		void freeHost()
 		{
@@ -202,16 +222,16 @@ namespace CUDA
 		{
 			if (size == 0 && type != GLinterop)resize(sizeof(T));
 			if (size >= sizeof(T))
-				cudaMemcpy(device, &a, sizeof(T), cudaMemcpyHostToDevice);
+				CUDA_CHECK_THROW(cudaMemcpy(device, &a, sizeof(T), cudaMemcpyHostToDevice));
 		}
 		void copy(void* _src, size_t _size)
 		{
 			if (size == 0 && type != GLinterop)resize(_size);
 			if (_size)
 			{
-				if (size >= _size)cudaMemcpy(device, _src, _size, cudaMemcpyHostToDevice);
+				if (size >= _size)CUDA_CHECK_THROW(cudaMemcpy(device, _src, _size, cudaMemcpyHostToDevice));
 			}
-			else cudaMemcpy(device, _src, size, cudaMemcpyHostToDevice);
+			else CUDA_CHECK_THROW(cudaMemcpy(device, _src, size, cudaMemcpyHostToDevice));
 		}
 		void copy(Buffer& a)
 		{
@@ -225,7 +245,7 @@ namespace CUDA
 		}
 		void clearDevice(int val)
 		{
-			if (device)cudaMemset(device, val, size);
+			if (device)CUDA_CHECK_THROW(cudaMemset(device, val, size));
 		}
 		operator CUdeviceptr()const
 		{
@@ -237,18 +257,18 @@ namespace CUDA
 	{
 		cudaGraphicsResource_t graphicsResources;
 		GLTextureBase() :graphicsResources(nullptr) {}
-		void unregisterResource()
+		void unregister_resource()
 		{
-			cudaGraphicsUnregisterResource(graphicsResources);
+			CUDA_CHECK_THROW(cudaGraphicsUnregisterResource(graphicsResources));
 			graphicsResources = nullptr;
 		}
 		void map(cudaStream_t _stream)
 		{
-			cudaGraphicsMapResources(1, &graphicsResources, _stream);
+			CUDA_CHECK_THROW(cudaGraphicsMapResources(1, &graphicsResources, _stream));
 		}
 		void unmap(cudaStream_t _stream)
 		{
-			cudaGraphicsUnmapResources(1, &graphicsResources, _stream);
+			CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphicsResources, _stream));
 		}
 	};
 	template<unsigned int dim>struct GLTexture :GLTextureBase
@@ -266,11 +286,11 @@ namespace CUDA
 		GLTexture() :array(nullptr), surface(0) {}
 		void registerImage(OpenGL::TextureConfig<OpenGL::TextureStorage2D> const& _textureConfig, cudaGraphicsRegisterFlags _flags)
 		{
-			cudaGraphicsGLRegisterImage(&graphicsResources, _textureConfig.texture->texture, _textureConfig.type, _flags);
+			CUDA_CHECK_THROW(cudaGraphicsGLRegisterImage(&graphicsResources, _textureConfig.texture->texture, _textureConfig.type, _flags));
 		}
 		cudaArray_t createArray(unsigned int _level)
 		{
-			cudaGraphicsSubResourceGetMappedArray(&array, graphicsResources, 0, _level);
+			CUDA_CHECK_THROW(cudaGraphicsSubResourceGetMappedArray(&array, graphicsResources, 0, _level));
 			return array;
 		}
 		cudaSurfaceObject_t createSurface()
@@ -279,12 +299,12 @@ namespace CUDA
 			memset(&resourceDesc, 0, sizeof(resourceDesc));
 			resourceDesc.resType = cudaResourceTypeArray;
 			resourceDesc.res.array.array = array;
-			cudaCreateSurfaceObject(&surface, &resourceDesc);
+			CUDA_CHECK_THROW(cudaCreateSurfaceObject(&surface, &resourceDesc));
 			return surface;
 		}
 		void destroySurface()
 		{
-			cudaDestroySurfaceObject(surface);
+			CUDA_CHECK_THROW(cudaDestroySurfaceObject(surface));
 			surface = 0;
 		}
 	};
@@ -323,7 +343,7 @@ namespace CUDA
 				nullptr,{0,0,0},{data, width * 4ll,width, width},
 				_cuArray,{0,0,0},{0},{ width, width, 6 }, cudaMemcpyHostToDevice
 			};
-			cudaMemcpy3D(&cpy3Dparams);
+			CUDA_CHECK_THROW(cudaMemcpy3D(&cpy3Dparams));
 		}
 	};
 	template<unsigned int dim>struct Texture
@@ -342,7 +362,7 @@ namespace CUDA
 		{
 			if (width)
 			{
-				cudaMallocArray(&data, &_cd, 256);
+				CUDA_CHECK_THROW(cudaMallocArray(&data, &_cd, 256));
 				cudaResourceDesc resDesc;
 				memset(&resDesc, 0, sizeof(resDesc));
 				resDesc.resType = cudaResourceTypeArray;
@@ -353,7 +373,7 @@ namespace CUDA
 				texDesc.filterMode = _fm;
 				texDesc.readMode = _rm;
 				texDesc.normalizedCoords = normalizedCoords;
-				cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr);
+				CUDA_CHECK_THROW(cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr));
 			}
 		}
 		Texture(cudaChannelFormatDesc const& channelDesc, cudaTextureAddressMode addressMode,
@@ -365,10 +385,10 @@ namespace CUDA
 		{
 			if (width)
 			{
-				cudaMallocArray(&data, &channelDesc, 256);
-				if (src)cudaMemcpyToArray(data, 0, 0, src,
+				CUDA_CHECK_THROW(cudaMallocArray(&data, &channelDesc, 256));
+				if (src)CUDA_CHECK_THROW(cudaMemcpyToArray(data, 0, 0, src,
 					width * (channelDesc.x + channelDesc.y + channelDesc.z + channelDesc.w) / 8,
-					cudaMemcpyHostToDevice);//only for dim<3
+					cudaMemcpyHostToDevice));//only for dim<3
 				cudaResourceDesc resDesc;
 				memset(&resDesc, 0, sizeof(resDesc));
 				resDesc.resType = cudaResourceTypeArray;
@@ -379,19 +399,19 @@ namespace CUDA
 				texDesc.filterMode = filterMode;
 				texDesc.readMode = readMode;
 				texDesc.normalizedCoords = normalizedCoords;
-				cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr);
+				CUDA_CHECK_PRINT(cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr));
 			}
 		}
 		~Texture()
 		{
 			if (textureObj)
 			{
-				cudaDestroyTextureObject(textureObj);
+				CUDA_CHECK_PRINT(cudaDestroyTextureObject(textureObj));
 				textureObj = 0;
 			}
 			if (data)
 			{
-				cudaFreeArray(data);
+				CUDA_CHECK_PRINT(cudaFreeArray(data));
 				data = nullptr;
 			}
 		}
@@ -420,7 +440,7 @@ namespace CUDA
 			if (cubeMap.width)
 			{
 				cudaExtent extent{ cubeMap.width, cubeMap.width, 6 };
-				cudaMalloc3DArray(&data, &_cd, extent, cudaArrayCubemap);
+				CUDA_CHECK_THROW(cudaMalloc3DArray(&data, &_cd, extent, cudaArrayCubemap));
 				cubeMap.moveToGPU(data);
 				cudaResourceDesc resDesc;
 				cudaTextureDesc texDesc;
@@ -434,14 +454,14 @@ namespace CUDA
 				texDesc.addressMode[1] = cudaAddressModeWrap;
 				texDesc.addressMode[2] = cudaAddressModeWrap;
 				texDesc.readMode = _rm;
-				cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr);
+				CUDA_CHECK_PRINT(cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr));
 			}
 		}
 		~TextureCube()
 		{
 			if (textureObj)
 			{
-				cudaDestroyTextureObject(textureObj);
+				CUDA_CHECK_PRINT(cudaDestroyTextureObject(textureObj));
 				textureObj = 0;
 			}
 			if (data)
@@ -463,7 +483,7 @@ namespace CUDA
 			:
 			devices{ -1,-1,-1,-1,-1,-1,-1,-1 }
 		{
-			cudaGLGetDevices(&deviceCount, devices, 8, cudaGLDeviceListAll);
+			CUDA_CHECK_THROW(cudaGLGetDevices(&deviceCount, devices, 8, cudaGLDeviceListAll));
 		}
 		void printInfo()
 		{
@@ -477,3 +497,11 @@ namespace CUDA
 
 
 }
+#ifdef NotDefinedCUDA_CHECK_THROW
+#undef CUDA_CHECK_PRINT
+#undef CUDA_CHECK_THROW
+#undef FILE_LINE
+#undef STR
+#undef STRINGIFY
+#endif
+#undef NotDefinedCUDA_CHECK_THROW

@@ -128,5 +128,5 @@ void MandelbrotFractalCUDA_Glue::run()
 
 void MandelbrotFractalCUDA_Glue::close()
 {
-	img.unregisterResource();
+	img.unregister_resource();
 }
