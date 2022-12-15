@@ -1206,7 +1206,7 @@ namespace OpenGL
 		decreaseRatio(0.95),
 		threshold(0.01),
 		k(1),
-		total(threshold)
+		total(0)
 	{
 	}
 	inline Transform2D::Scroll::Scroll(Data::Scroll const& _scroll)
@@ -1215,7 +1215,7 @@ namespace OpenGL
 		decreaseRatio(_scroll.decreaseRatio),
 		threshold(_scroll.threshold),
 		k(_scroll.k),
-		total(threshold)
+		total(0)
 	{
 	}
 	inline void Transform2D::Scroll::refresh(double _d)
