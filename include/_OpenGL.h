@@ -992,7 +992,7 @@ namespace OpenGL
 		increaseDelta(0.05),
 		decreaseRatio(0.95),
 		threshold(0.01),
-		total(threshold)
+		total(0)
 	{
 	}
 	inline Transform::Scroll::Scroll(Data::Scroll const& _scroll)
@@ -1000,7 +1000,7 @@ namespace OpenGL
 		increaseDelta(_scroll.increaseDelta),
 		decreaseRatio(_scroll.decreaseRatio),
 		threshold(_scroll.threshold),
-		total(threshold)
+		total(0)
 	{
 	}
 	inline void Transform::Scroll::refresh(double _d)
