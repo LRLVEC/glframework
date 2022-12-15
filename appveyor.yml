@@ -1,0 +1,17 @@
+version: '1.0.{build}'
+image:
+- Visual Studio 2019
+- Visual Studio 2022
+configuration:
+- Release
+
+environment:
+  matrix:
+  - ARCH: amd64
+
+install:
+- git submodule update --init --recursive
+build_script:
+- cmake .
+- cmake --build .
+
