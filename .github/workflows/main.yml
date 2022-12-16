@@ -53,7 +53,7 @@ jobs:
   #       run: cmake --build . --target all --verbose -j `nproc`
 
   build_windows:
-    runs-on: [self-hosted, matrix.os, amd64, gpu]
+    runs-on: [self-hosted, ${{ matrix.os }}, amd64, gpu]
     name: Build on Windows
     strategy:
       matrix:
