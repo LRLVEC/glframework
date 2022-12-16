@@ -150,6 +150,7 @@ namespace OpenGL
 				if (_action == GLFW_PRESS)
 				{
 					glfwSetWindowShouldClose(_window, true);
+					fractal->close();
 				}
 				break;
 			case GLFW_KEY_A:trans.key.refresh(0, _action); break;

@@ -247,10 +247,11 @@ namespace CUDA
 		{
 			if (device)CUDA_CHECK_THROW(cudaMemset(device, val, size));
 		}
-		operator CUdeviceptr()const
-		{
-			return (CUdeviceptr)device;
-		}
+		// deprecated in cuda 12.0
+		// operator CUdeviceptr()const
+		// {
+		// 	return (CUdeviceptr)device;
+		// }
 	};
 	// mapping OpenGL Texture, can read and write
 	struct GLTextureBase
