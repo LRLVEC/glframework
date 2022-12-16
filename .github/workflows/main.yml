@@ -99,7 +99,6 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: ${{ matrix.cuda }}
-      - run: echo "Installed cuda version is: ${{steps.cuda-toolkit.outputs.cuda}}"
       # - name: Install CUDA
       #   env:
       #     cuda: ${{ matrix.cuda }}
