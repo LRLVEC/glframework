@@ -58,11 +58,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-2019
+          - os: windows-2022
             visual_studio: "Visual Studio 17 2022"
             cuda: "12.0.0"
             arch: 89
-          - os: windows-2019
+          - os: windows-2022
             visual_studio: "Visual Studio 17 2022"
             cuda: "11.5.1"
             arch: 86
