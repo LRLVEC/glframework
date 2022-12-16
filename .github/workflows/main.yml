@@ -53,6 +53,7 @@ jobs:
   #       run: cmake --build . --target all --verbose -j `nproc`
 
   build_windows:
+    runs-on: [self-hosted, windows, amd64, gpu]
     name: Build on Windows
     runs-on: ${{ matrix.os }}
     strategy:
@@ -94,12 +95,17 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - name: Install CUDA
-        env:
+      - uses: Jimver/cuda-toolkit@v0.2.8
+        id: cuda-toolkit
+        with:
           cuda: ${{ matrix.cuda }}
-          visual_studio: ${{ matrix.visual_studio }}
-        shell: powershell
-        run: .\dependencies\cuda-cmake-github-actions\scripts\actions\install_cuda_windows.ps1
+      - run: echo "Installed cuda version is: ${{steps.cuda-toolkit.outputs.cuda}}"
+      # - name: Install CUDA
+      #   env:
+      #     cuda: ${{ matrix.cuda }}
+      #     visual_studio: ${{ matrix.visual_studio }}
+      #   shell: powershell
+      #   run: .\dependencies\cuda-cmake-github-actions\scripts\actions\install_cuda_windows.ps1
       - name: CMake
         run: cmake . -B ${{ env.build_dir }} -G "${{ matrix.visual_studio }}" -A x64
       - name: Build
