@@ -105,7 +105,7 @@ struct MultiViewTest
 
 	void loop()
 	{
-		while (ui.update())
+		while (ui.update(0))
 		{
 			if (gui.should_create_new_view)
 			{

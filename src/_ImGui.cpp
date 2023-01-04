@@ -179,9 +179,9 @@ namespace GUI
 		_window.swapBuffers();
 	}
 
-	bool UserInterface::update()
+	bool UserInterface::update(int interval)
 	{
-		glfwSwapInterval(0);
+		glfwSwapInterval(interval);
 		windowGuis.check([](GUI::WindowGui*const& _windowGui)
 			{
 				if (glfwWindowShouldClose(_windowGui->window->window))
@@ -254,7 +254,7 @@ namespace GUI
 	void UserInterface::minimalLoop()
 	{
 		glfwSwapInterval(0);
-		while (update());
+		while (update(0));
 	}
 
 	UserInterface* UserInterface::__userInterface = nullptr;

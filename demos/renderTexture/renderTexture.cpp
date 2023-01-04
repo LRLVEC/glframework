@@ -99,7 +99,7 @@ struct TextureRendererTest
 
 	void loop()
 	{
-		while (ui.update())
+		while (ui.update(0))
 		{
 			// handle gui update
 		}

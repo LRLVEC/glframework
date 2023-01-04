@@ -121,7 +121,7 @@ struct MultiSimTest
 
 	void loop()
 	{
-		while (ui.update())
+		while (ui.update(0))
 		{
 			deleteUnusedSubSims();
 			if (gui.should_create_new_sub_sim)

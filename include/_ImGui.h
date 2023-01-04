@@ -61,8 +61,8 @@ namespace GUI
 		// single window render pipline for a thread, includeing its OpenGL func and WindowGui, multiple WindowGui will be supported soon
 		void updateWindow(Window::Window& _window, Vector<WindowGui*>& _winidowGuis);
 
-		// get inputs and update one frame for all windows, returns whether main window is alive
-		bool update();
+		// get inputs and update one frame for all windows, returns whether main window is alive, _interval is for glfwSwapInterval
+		bool update(int _interval);
 
 		// minimal loop of drawing windows and their UIs. Since multi-context imgui is not supported yet (comming soon), 
 		// so use 1 WindowGui at most.
