@@ -1322,7 +1322,7 @@ namespace OpenGL
 		if (now.valid && pre.valid)
 		{
 			pre.valid = false;
-			return { pre.x - now.x ,pre.y - now.y };
+			return { pre.x - now.x, now.y - pre.y };// inverse y
 		}
 		else return { 0.0,0.0 };
 	}

@@ -72,12 +72,12 @@ __global__ void runMandelbrotFractal(cudaSurfaceObject_t img, int2 _size, double
 				float l;
 				if (useDouble)
 				{
-					double2 p = _center + make_double2(x - _size.x / 2 + m / double(AA), _size.y / 2 - y + n / double(AA)) / (double(_size.x) * scale);
+					double2 p = _center + make_double2(x - _size.x / 2 + m / double(AA), y - _size.y / 2 + n / double(AA)) / (double(_size.x) * scale);
 					l = 3. + mandelbrotFractalKernel(p, iter) * 0.15;
 				}
 				else
 				{
-					float2 p = make_float2(_center) + make_float2(x - _size.x / 2 + m / float(AA), _size.y / 2 - y + n / float(AA)) / (float(_size.x) * scale);
+					float2 p = make_float2(_center) + make_float2(x - _size.x / 2 + m / float(AA), y - _size.y / 2 + n / float(AA)) / (float(_size.x) * scale);
 					l = 3.f + mandelbrotFractalKernel(p, iter) * 0.15f;
 				}
 				col += 0.5f * (1.f + make_float3(__cosf(l + 0.f), __cosf(l + 0.6f), __cosf(l + 1.f)));
