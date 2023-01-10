@@ -1,12 +1,6 @@
 #pragma once
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#ifdef _WIN32
-#define GLFW_EXPOSE_NATIVE_WIN32
-#define GLFW_EXPOSE_NATIVE_WGL
-#define GLFW_NATIVE_INCLUDE_NONE
-#include <GLFW/glfw3native.h>
-#endif
 #include <_Vector.h>
 #include <_String.h>
 #include <_Array.h>
@@ -17,6 +11,8 @@
 
 namespace OpenGL
 {
+	void set_render_target_from_context(GLFWwindow* newWindow, GLFWwindow* contextWindow);
+
 	struct FrameScale
 	{
 		int w;

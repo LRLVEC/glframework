@@ -6,6 +6,7 @@
 #include <time.h>
 #include <random>
 #include <unordered_map>
+#include <stdexcept>
 
 namespace CUDA
 {
@@ -399,7 +400,7 @@ namespace OpenGL
 		}
 		void setRenderTarget(GLFWwindow* _window)
 		{
-			wglMakeCurrent(GetDC(glfwGetWin32Window(_window)), glfwGetWGLContext(mainWindow));
+			set_render_target_from_context(_window, mainWindow);
 		}
 		virtual void init(FrameScale const& _size) override
 		{
