@@ -489,6 +489,7 @@ namespace OpenGL
 			bool left;
 			bool middle;
 			bool right;
+			bool updated;
 			Mouse();
 			void refreshPos(double, double);
 			void refreshButton(int, bool);
@@ -1005,7 +1006,7 @@ namespace OpenGL
 	}
 	inline double Transform::Scroll::operate()
 	{
-		if (abs(total) > threshold)
+		if (std::abs(total) > threshold)
 		{
 			total *= decreaseRatio;
 			return total;
@@ -1062,7 +1063,8 @@ namespace OpenGL
 		pre(),
 		left(false),
 		middle(false),
-		right(false)
+		right(false),
+		updated(false)
 	{
 	}
 	inline void Transform::Mouse::refreshPos(double _x, double _y)
@@ -1071,9 +1073,13 @@ namespace OpenGL
 		{
 			if (now.valid)
 			{
-				pre = now;
+				if (!updated)
+				{
+					pre = now;
+				}
 				now.x = _x;
 				now.y = _y;
+				updated = true;
 			}
 			else
 			{
@@ -1100,6 +1106,7 @@ namespace OpenGL
 	}
 	inline Math::vec2<double> Transform::Mouse::operate()
 	{
+		updated = false;
 		if (now.valid && pre.valid)
 		{
 			pre.valid = false;

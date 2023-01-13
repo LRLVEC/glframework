@@ -14,8 +14,10 @@ namespace GUI
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool show_another_window = false;
 		bool should_create_new_sub_sim = false;
+		bool vsync = false;
 		float f = 0.0f;
 		int counter = 0;
+
 
 		MultiSimGui(Window::Window* _window) :WindowGui(_window) {}
 		virtual void gui()override
@@ -38,6 +40,11 @@ namespace GUI
 
 			if (ImGui::Button("New SubSim"))
 				should_create_new_sub_sim = true;
+
+			if (ImGui::Button("V-sync (disable to get higher fps)"))
+			{
+				vsync = !vsync;
+			}
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
@@ -121,7 +128,7 @@ struct MultiSimTest
 
 	void loop()
 	{
-		while (ui.update(0))
+		while (ui.update(gui.vsync))
 		{
 			deleteUnusedSubSims();
 			if (gui.should_create_new_sub_sim)

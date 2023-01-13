@@ -253,7 +253,6 @@ namespace GUI
 
 	void UserInterface::minimalLoop()
 	{
-		glfwSwapInterval(0);
 		while (update(0));
 	}
 
