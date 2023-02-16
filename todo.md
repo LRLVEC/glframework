@@ -3,3 +3,4 @@
 3. add demo for rendering a texture -- Done
 4. cuda render buffer impl: for ray tracing or sth else that renders to a gpu memory buffer -- Done
 5. **BUG**: on ubuntu, callback functions may be called multiple times between two frames
+6. **BUG**: GPU memory leak in demo RenderTexture -- Done

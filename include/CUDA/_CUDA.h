@@ -291,6 +291,10 @@ namespace CUDA
 		GLTexture() :array(nullptr), surface(0) {}
 		void registerImage(OpenGL::TextureConfig<OpenGL::TextureStorage2D> const& _textureConfig, cudaGraphicsRegisterFlags _flags)
 		{
+			if (graphicsResources)
+			{
+				unregister_resource();
+			}
 			CUDA_CHECK_THROW(cudaGraphicsGLRegisterImage(&graphicsResources, _textureConfig.texture->texture, _textureConfig.type, _flags));
 		}
 		cudaArray_t createArray(unsigned int _level)
