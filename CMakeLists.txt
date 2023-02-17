@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(glframework LANGUAGES CXX CUDA)
+project(glframework LANGUAGES CXX)
 
 if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/CMakeLists.txt")
 	message(FATAL_ERROR
@@ -117,5 +117,7 @@ target_link_libraries(glframework PUBLIC ${GLFRAMEWORK_LIBRARIES})
 if(GLFRAMEWORK_BUILD_DEMOS)
 	add_subdirectory(demos/multiSim)
 	add_subdirectory(demos/multiView)
-	add_subdirectory(demos/renderTexture)
+	if (CMAKE_CUDA_COMPILER AND GLFRAMEWORK_ENABLE_CUDA)
+		add_subdirectory(demos/renderTexture)
+	endif()
 endif()
