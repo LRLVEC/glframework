@@ -14,6 +14,10 @@ MultiSim demo can render multiple n-body simulations in different windows, with 
 
 MultiView demo can render multiple views of one n-body simulation.
 
+## Multi-thread (To be implemented since imgui multi context is not done yet)
+
+MultiThread demo can render multiple windows with one thread for each window.
+
 ## Render texture
 <img src="docs/readme/render%20texture%20fractal.png" height = 300/>
 

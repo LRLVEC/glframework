@@ -181,7 +181,9 @@ namespace GUI
 
 	bool UserInterface::update(int interval)
 	{
+		// TODO: add multi thread support for rendering multiple window and their guis
 		glfwSwapInterval(interval);
+		// destory the guis that their windows were already destoryed
 		windowGuis.check([](GUI::WindowGui*const& _windowGui)
 			{
 				if (glfwWindowShouldClose(_windowGui->window->window))

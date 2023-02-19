@@ -5,3 +5,6 @@
 5. **BUG**: on ubuntu, callback functions may be called multiple times between two frames
 6. **BUG**: GPU memory leak in demo RenderTexture -- Done
 7. adapt for non-cuda devices -- Done (except for RenderTexture since it does not need this tech)
+8. add multi-thread for multi-window (multi-OpenGL context) and multi-imgui context rendering system
+   1. the guis for the same gui should be rendered in the same thread as the OpenGL renderings
+   2. wait for offical imgui to support multi-context
