@@ -419,6 +419,9 @@ namespace Window
 				{
 					if (glfwWindowShouldClose(_window.window))
 					{
+						glfwMakeContextCurrent(_window.window);
+						glfwSetWindowShouldClose(_window.window, true);
+						_window.openGL->close();
 						//glfwDestroyWindow(_window.window);// move to deconstruction func
 						return false;
 					}
@@ -433,6 +436,7 @@ namespace Window
 				{
 					glfwMakeContextCurrent(_window.window);
 					glfwSetWindowShouldClose(_window.window, true);
+					_window.openGL->close();
 					return false;
 				}
 			);

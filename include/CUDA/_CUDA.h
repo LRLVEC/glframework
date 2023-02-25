@@ -264,8 +264,11 @@ namespace CUDA
 		GLTextureBase() :graphicsResources(nullptr) {}
 		void unregister_resource()
 		{
-			CUDA_CHECK_THROW(cudaGraphicsUnregisterResource(graphicsResources));
-			graphicsResources = nullptr;
+			if (graphicsResources)
+			{
+				CUDA_CHECK_THROW(cudaGraphicsUnregisterResource(graphicsResources));
+				graphicsResources = nullptr;
+			}
 		}
 		void map(cudaStream_t _stream)
 		{

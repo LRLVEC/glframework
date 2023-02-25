@@ -48,6 +48,7 @@ namespace OpenGL
 	{
 		virtual void init(FrameScale const&) {}
 		virtual void run() {}
+		virtual void close() {}
 		virtual void frameSize(GLFWwindow*, int, int) {}
 		virtual void framePos(GLFWwindow*, int, int) {}
 		virtual void frameFocus(GLFWwindow*, int) {}
