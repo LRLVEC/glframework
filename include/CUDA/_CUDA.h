@@ -261,7 +261,9 @@ namespace CUDA
 	struct GLTextureBase
 	{
 		cudaGraphicsResource_t graphicsResources;
-		GLTextureBase() :graphicsResources(nullptr) {}
+
+		GLTextureBase():graphicsResources(nullptr) {}
+
 		void unregister_resource()
 		{
 			if (graphicsResources)
@@ -270,29 +272,33 @@ namespace CUDA
 				graphicsResources = nullptr;
 			}
 		}
+
 		void map(cudaStream_t _stream)
 		{
 			CUDA_CHECK_THROW(cudaGraphicsMapResources(1, &graphicsResources, _stream));
 		}
+
 		void unmap(cudaStream_t _stream)
 		{
 			CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphicsResources, _stream));
 		}
 	};
-	template<unsigned int dim>struct GLTexture :GLTextureBase
+	template<unsigned int dim>struct GLTexture:GLTextureBase
 	{
 		static_assert(dim&& dim < 4, "Dim must be one of 1, 2, 3!");
 	};
-	template<>struct GLTexture<1> :GLTextureBase
+	template<>struct GLTexture<1>:GLTextureBase
 	{
 	};
-	template<>struct GLTexture<2> :GLTextureBase
+	template<>struct GLTexture<2>:GLTextureBase
 	{
-		cudaArray_t array; // read only
-		cudaSurfaceObject_t surface; // read and write
+		cudaArray_t array;				// read only
+		cudaSurfaceObject_t surface;	// read and write
+		cudaTextureObject_t texture;	// read and write
 
-		GLTexture() :array(nullptr), surface(0) {}
-		void registerImage(OpenGL::TextureConfig<OpenGL::TextureStorage2D> const& _textureConfig, cudaGraphicsRegisterFlags _flags)
+		GLTexture():array(nullptr), surface(0) {}
+
+		void registerImage(OpenGL::TextureConfig<OpenGL::TextureStorage2D> const& _textureConfig, unsigned int _flags)
 		{
 			if (graphicsResources)
 			{
@@ -300,11 +306,13 @@ namespace CUDA
 			}
 			CUDA_CHECK_THROW(cudaGraphicsGLRegisterImage(&graphicsResources, _textureConfig.texture->texture, _textureConfig.type, _flags));
 		}
+
 		cudaArray_t createArray(unsigned int _level)
 		{
 			CUDA_CHECK_THROW(cudaGraphicsSubResourceGetMappedArray(&array, graphicsResources, 0, _level));
 			return array;
 		}
+
 		cudaSurfaceObject_t createSurface()
 		{
 			cudaResourceDesc resourceDesc;
@@ -314,13 +322,42 @@ namespace CUDA
 			CUDA_CHECK_THROW(cudaCreateSurfaceObject(&surface, &resourceDesc));
 			return surface;
 		}
+
+		cudaTextureObject_t createTexture(
+			cudaTextureFilterMode cudaFilterMode = cudaFilterModeLinear,
+			cudaTextureAddressMode cudaAddressMode = cudaAddressModeClamp
+		)
+		{
+			cudaResourceDesc resourceDesc;
+			memset(&resourceDesc, 0, sizeof(resourceDesc));
+			resourceDesc.resType = cudaResourceTypeArray;
+			resourceDesc.res.array.array = array;
+
+			cudaTextureDesc texDesc;
+			memset(&texDesc, 0, sizeof(texDesc));
+			texDesc.filterMode = cudaFilterMode;
+			texDesc.normalizedCoords = true;
+			texDesc.addressMode[0] = cudaAddressMode;
+			texDesc.addressMode[1] = cudaAddressMode;
+			texDesc.addressMode[2] = cudaAddressMode;
+
+			CUDA_CHECK_THROW(cudaCreateTextureObject(&texture, &resourceDesc, &texDesc, nullptr));
+			return texture;
+		}
+
 		void destroySurface()
 		{
 			CUDA_CHECK_THROW(cudaDestroySurfaceObject(surface));
 			surface = 0;
 		}
+
+		void destroyTexture()
+		{
+			CUDA_CHECK_THROW(cudaDestroyTextureObject(texture));
+			texture = 0;
+		}
 	};
-	template<>struct GLTexture<3> :GLTextureBase
+	template<>struct GLTexture<3>:GLTextureBase
 	{
 	};
 	struct CubeMap
@@ -328,8 +365,8 @@ namespace CUDA
 		BMP::Pixel_32* data;
 		unsigned int width;
 
-		CubeMap() :data(nullptr), width(0) {}
-		CubeMap(String<char>const& _path) :data(nullptr), width(0)
+		CubeMap():data(nullptr), width(0) {}
+		CubeMap(String<char>const& _path):data(nullptr), width(0)
 		{
 			String<char> names[6]{ "right.bmp","left.bmp" ,"top.bmp" ,"bottom.bmp"  ,"back.bmp","front.bmp" };
 			BMP tp(_path + names[0], true);
@@ -358,86 +395,132 @@ namespace CUDA
 			CUDA_CHECK_THROW(cudaMemcpy3D(&cpy3Dparams));
 		}
 	};
+
+	// pure cuda texture created from cuda array
 	template<unsigned int dim>struct Texture
 	{
 		static_assert(dim&& dim < 4, "Dim must be one of 1, 2, 3!");
 	};
+
 	template<>struct Texture<1>
 	{
-		cudaArray* data;
-		cudaTextureObject_t textureObj;
-		Texture(cudaChannelFormatDesc const& _cd, cudaTextureAddressMode _am,
-			cudaTextureFilterMode _fm, cudaTextureReadMode _rm, bool normalizedCoords, size_t width)
+		cudaArray* array;
+		cudaTextureObject_t texture;
+
+		Texture(size_t width,
+			cudaChannelFormatDesc const& channelDesc,
+			void const* src = nullptr,
+			cudaTextureAddressMode addressMode = cudaAddressModeClamp,
+			cudaTextureFilterMode filterMode = cudaFilterModeLinear,
+			cudaTextureReadMode readMode = cudaReadModeNormalizedFloat,
+			bool normalizedCoords = true)
 			:
-			data(nullptr),
-			textureObj(0)
+			array(nullptr),
+			texture(0)
 		{
 			if (width)
 			{
-				CUDA_CHECK_THROW(cudaMallocArray(&data, &_cd, 256));
+				CUDA_CHECK_THROW(cudaMallocArray(&array, &channelDesc, width));
+				if (src)
+				{
+					size_t element_size = (channelDesc.x + channelDesc.y + channelDesc.z + channelDesc.w) / 8;
+					CUDA_CHECK_THROW(cudaMemcpy2DToArray(array, 0, 0, src, element_size * width, element_size * width, 1, cudaMemcpyHostToDevice));
+				}
 				cudaResourceDesc resDesc;
 				memset(&resDesc, 0, sizeof(resDesc));
 				resDesc.resType = cudaResourceTypeArray;
-				resDesc.res.array.array = data;
-				cudaTextureDesc texDesc;
-				memset(&texDesc, 0, sizeof(texDesc));
-				texDesc.addressMode[0] = _am;
-				texDesc.filterMode = _fm;
-				texDesc.readMode = _rm;
-				texDesc.normalizedCoords = normalizedCoords;
-				CUDA_CHECK_THROW(cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr));
-			}
-		}
-		Texture(cudaChannelFormatDesc const& channelDesc, cudaTextureAddressMode addressMode,
-			cudaTextureFilterMode filterMode, cudaTextureReadMode readMode, bool normalizedCoords,
-			void const* src, size_t width)
-			:
-			data(nullptr),
-			textureObj(0)
-		{
-			if (width)
-			{
-				CUDA_CHECK_THROW(cudaMallocArray(&data, &channelDesc, 256));
-				if (src)CUDA_CHECK_THROW(cudaMemcpyToArray(data, 0, 0, src,
-					width * (channelDesc.x + channelDesc.y + channelDesc.z + channelDesc.w) / 8,
-					cudaMemcpyHostToDevice));//only for dim<3
-				cudaResourceDesc resDesc;
-				memset(&resDesc, 0, sizeof(resDesc));
-				resDesc.resType = cudaResourceTypeArray;
-				resDesc.res.array.array = data;
+				resDesc.res.array.array = array;
 				cudaTextureDesc texDesc;
 				memset(&texDesc, 0, sizeof(texDesc));
 				texDesc.addressMode[0] = addressMode;
 				texDesc.filterMode = filterMode;
 				texDesc.readMode = readMode;
 				texDesc.normalizedCoords = normalizedCoords;
-				CUDA_CHECK_PRINT(cudaCreateTextureObject(&textureObj, &resDesc, &texDesc, nullptr));
+				CUDA_CHECK_PRINT(cudaCreateTextureObject(&texture, &resDesc, &texDesc, nullptr));
 			}
 		}
+
 		~Texture()
 		{
-			if (textureObj)
+			if (texture)
 			{
-				CUDA_CHECK_PRINT(cudaDestroyTextureObject(textureObj));
-				textureObj = 0;
+				CUDA_CHECK_PRINT(cudaDestroyTextureObject(texture));
+				texture = 0;
 			}
-			if (data)
+			if (array)
 			{
-				CUDA_CHECK_PRINT(cudaFreeArray(data));
-				data = nullptr;
+				CUDA_CHECK_PRINT(cudaFreeArray(array));
+				array = nullptr;
 			}
 		}
 		operator cudaTextureObject_t()const
 		{
-			return textureObj;
+			return texture;
 		}
 	};
+
 	template<>struct Texture<2>
 	{
+		cudaArray* array;
+		cudaTextureObject_t texture;
+
+		Texture(size_t width, size_t height,
+			cudaChannelFormatDesc const& channelDesc,
+			void const* src = nullptr,
+			cudaTextureAddressMode addressMode = cudaAddressModeClamp,
+			cudaTextureFilterMode filterMode = cudaFilterModeLinear,
+			cudaTextureReadMode readMode = cudaReadModeNormalizedFloat,
+			bool normalizedCoords = true)
+			:
+			array(nullptr),
+			texture(0)
+		{
+			if (width && height)
+			{
+				CUDA_CHECK_THROW(cudaMallocArray(&array, &channelDesc, width, height));
+				if (src)
+				{
+					size_t element_size = (channelDesc.x + channelDesc.y + channelDesc.z + channelDesc.w) / 8;
+					CUDA_CHECK_THROW(cudaMemcpy2DToArray(array, 0, 0, src, element_size * width, element_size * width, height, cudaMemcpyHostToDevice));
+				}
+				cudaResourceDesc resDesc;
+				memset(&resDesc, 0, sizeof(resDesc));
+				resDesc.resType = cudaResourceTypeArray;
+				resDesc.res.array.array = array;
+				cudaTextureDesc texDesc;
+				memset(&texDesc, 0, sizeof(texDesc));
+				texDesc.addressMode[0] = addressMode;
+				texDesc.filterMode = filterMode;
+				texDesc.readMode = readMode;
+				texDesc.normalizedCoords = normalizedCoords;
+				CUDA_CHECK_PRINT(cudaCreateTextureObject(&texture, &resDesc, &texDesc, nullptr));
+			}
+		}
+
+		~Texture()
+		{
+			if (texture)
+			{
+				CUDA_CHECK_PRINT(cudaDestroyTextureObject(texture));
+				texture = 0;
+			}
+			if (array)
+			{
+				CUDA_CHECK_PRINT(cudaFreeArray(array));
+				array = nullptr;
+			}
+		}
+
+		operator cudaTextureObject_t()const
+		{
+			return texture;
+		}
 	};
+
 	template<>struct Texture<3>
 	{
 	};
+
 	struct TextureCube
 	{
 		cudaArray* data;
@@ -487,6 +570,7 @@ namespace CUDA
 			return textureObj;
 		}
 	};
+
 	struct OpenGLDeviceInfo
 	{
 		unsigned int deviceCount;
