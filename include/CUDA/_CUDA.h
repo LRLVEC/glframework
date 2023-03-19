@@ -193,12 +193,12 @@ namespace CUDA
 		{
 			if (type == GLinterop)
 			{
-				if (graphics)
+				if (graphics && device)
 				{
 					CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphics));
 					graphics = nullptr;
+					device = nullptr;
 				}
-				device = nullptr;
 			}
 			else CUDA_CHECK_THROW(cudaStreamSynchronize(0));
 		}
