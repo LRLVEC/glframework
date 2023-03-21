@@ -170,10 +170,18 @@ namespace CUDA
 		}
 		void resize(GLuint _gl)
 		{
-			//bug here!!!!!
-			CUDA_CHECK_THROW(cudaGraphicsGLRegisterBuffer(&graphics, gl = _gl, cudaGraphicsRegisterFlagsNone));
-			//map();
-			//unmap();
+			if (!graphics)
+			{
+				CUDA_CHECK_THROW(cudaGraphicsGLRegisterBuffer(&graphics, gl = _gl, cudaGraphicsRegisterFlagsNone));
+			}
+		}
+		void unregister()
+		{
+			if (graphics)
+			{
+				CUDA_CHECK_THROW(cudaGraphicsUnregisterResource(graphics));
+				graphics = nullptr;
+			}
 		}
 		void resizeHost()
 		{
@@ -196,11 +204,10 @@ namespace CUDA
 				if (graphics && device)
 				{
 					CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphics));
-					graphics = nullptr;
 					device = nullptr;
 				}
 			}
-			else CUDA_CHECK_THROW(cudaStreamSynchronize(0));
+			CUDA_CHECK_THROW(cudaStreamSynchronize(0));
 		}
 		void freeHost()
 		{
