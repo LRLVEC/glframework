@@ -230,20 +230,19 @@ namespace GUI
 			int winNum(0);
 			wm.windows.traverseLambda([&windowGuiTable, &winNum](Window::Window const& _window)
 				{
-					windowGuiTable[winNum++].traverseLambda([](WindowGui* const& _windowGui)
+					_window.makeCurrent();
+					windowGuiTable[winNum].traverseLambda([](WindowGui* const& _windowGui)
 						{
 							_windowGui->newFrame();
 							_windowGui->gui();
 							_windowGui->draw();
-						}
-					);
-				}
-			);
-			wm.render();
-			winNum = 0;
-			wm.windows.traverseLambda([&windowGuiTable, &winNum](Window::Window const& _window)
-				{
-					windowGuiTable[winNum++].traverseLambda([](WindowGui* const& _windowGui) {_windowGui->render(); });
+						});
+					if (_window.openGL)
+						_window.openGL->run();
+					windowGuiTable[winNum++].traverseLambda([](WindowGui* const& _windowGui)
+						{
+							_windowGui->render();
+						});
 				}
 			);
 			wm.swapBuffers();
