@@ -299,6 +299,7 @@ namespace Window
 		}
 	};
 
+	// Window Manager without imgui
 	struct WindowManager
 	{
 		static WindowManager* __windowManager;

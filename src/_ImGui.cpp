@@ -1,7 +1,97 @@
 #include <_ImGui.h>
-#include <imgui/backends/imgui_impl_glfw.h>
-#include <imgui/backends/imgui_impl_opengl3.h>
 #include <_Pair.h>
+
+namespace Window
+{
+	ImGuiWindowManager* ImGuiWindowManager::__windowManager = nullptr;
+	// ImGuiWindow
+	ImGuiWindow::ImGuiWindow(Window::Data const& _data, bool _create_imgui_ctx, Window::CallbackFun const& _callback, GLFWcharfun _charFun, GuiBlock* _guiBlock)
+		:
+		window(_data, _callback),
+		imguiContext(nullptr),
+		imguiIO(nullptr),
+		charFun(_charFun)
+	{
+		if (_create_imgui_ctx)
+		{
+			imguiContext = ImGui::CreateContext();
+			if (imguiContext)
+			{
+				ImGui::SetCurrentContext(imguiContext);
+				ImGui_ImplGlfw_InitForOpenGL(window.window, false);
+				ImGui_ImplOpenGL3_Init("#version 460");
+				imguiIO = &ImGui::GetIO();
+			}
+		}
+		if (_guiBlock)
+			guiBlocks.emplace_back(_guiBlock);
+		glfwSetCharCallback(window.window, charFun);
+	}
+
+	ImGuiWindow::~ImGuiWindow()
+	{
+		if (window.window)
+		{
+			if (glfwWindowShouldClose(window.window))
+			{
+				makeCurrent();
+				if (window.openGL)
+					window.openGL->close();
+				printf("Destroy window %p with imgui %p\n", window.window, imguiContext);
+				if (imguiContext)
+				{
+					ImGui_ImplOpenGL3_Shutdown();
+					ImGui_ImplGlfw_Shutdown();
+					ImGui::DestroyContext(imguiContext);
+					imguiContext = nullptr;
+					imguiIO = nullptr;
+				}
+				glfwDestroyWindow(window.window);
+			}
+			window.window = nullptr;
+		}
+	}
+
+	void ImGuiWindow::init(OpenGL::OpenGL* _openGL)
+	{
+		makeCurrent();
+		window.init(_openGL);
+	}
+
+	void ImGuiWindow::makeCurrent()const
+	{
+		glfwMakeContextCurrent(window.window);
+		if (imguiContext)
+		{
+			ImGui::SetCurrentContext(imguiContext);
+		}
+	}
+
+	void ImGuiWindow::addGuiBlock(GuiBlock* _guiBlock)
+	{
+		guiBlocks.emplace_back(_guiBlock);
+	}
+
+	void ImGuiWindow::run()const
+	{
+		makeCurrent();
+		if (imguiContext)
+		{
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+			for (auto g : guiBlocks)
+				if (g)g->gui();
+			ImGui::Render();
+		}
+		if (window.openGL)
+			window.openGL->run();
+		if (imguiContext)
+		{
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		}
+	}
+}
 
 namespace GUI
 {
@@ -256,9 +346,9 @@ namespace GUI
 						{
 							_windowGui->render();
 						});
+					_window.swapBuffers();
 				}
 			);
-			wm.swapBuffers();
 			wm.pullEvents();
 			return true;
 		}
