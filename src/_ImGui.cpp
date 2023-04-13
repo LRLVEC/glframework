@@ -53,11 +53,12 @@ namespace GUI
 			{
 				window->makeCurrent();
 				imguiContext = ImGui::CreateContext();
-				ImGui_ImplGlfw_InitForOpenGL(window->window, true);
-				ImGui_ImplOpenGL3_Init("#version 460");
-				imguiIO = &ImGui::GetIO();
 				if (imguiContext)
 				{
+					ImGui::SetCurrentContext(imguiContext);
+					ImGui_ImplGlfw_InitForOpenGL(window->window, true);
+					ImGui_ImplOpenGL3_Init("#version 460");
+					imguiIO = &ImGui::GetIO();
 					return true;
 				}
 			}
@@ -90,9 +91,9 @@ namespace GUI
 
 	void WindowGui::newFrame()
 	{
-		makeCurrent();
 		if (imguiContext)
 		{
+			makeCurrent();
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
@@ -101,18 +102,18 @@ namespace GUI
 
 	void WindowGui::draw()
 	{
-		makeCurrent();
 		if (imguiContext)
 		{
+			makeCurrent();
 			ImGui::Render();
 		}
 	}
 
 	void WindowGui::render()
 	{
-		makeCurrent();
 		if (imguiContext)
 		{
+			makeCurrent();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		}
 	}
@@ -184,7 +185,7 @@ namespace GUI
 		// TODO: add multi thread support for rendering multiple window and their guis
 		glfwSwapInterval(interval);
 		// destroy the guis that their windows were already destroyed
-		windowGuis.check([](GUI::WindowGui*const& _windowGui)
+		windowGuis.check([](GUI::WindowGui* const& _windowGui)
 			{
 				if (glfwWindowShouldClose(_windowGui->window->window))
 				{
@@ -193,7 +194,19 @@ namespace GUI
 				}
 				return true;
 			});
-		if (!wm.close())
+		wm.windows.checkLambda([this](Window::Window const& _window)
+			{
+				if (glfwWindowShouldClose(_window.window))
+				{
+					glfwMakeContextCurrent(_window.window);
+					glfwSetWindowShouldClose(_window.window, true);
+					_window.openGL->close();
+					//glfwDestroyWindow(_window.window);// move to deconstruction func
+					return false;
+				}
+				return true;
+			});
+		if (wm.windows.length)
 		{
 			if (&wm.windows[0].data != mainWindow)
 			{
