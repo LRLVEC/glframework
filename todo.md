@@ -10,7 +10,7 @@
 8. - [ ] add multi-thread for multi-window (multi-OpenGL context) and multi-imgui context rendering system
    1. - [ ] the guis for the same gui should be rendered in the same thread as the OpenGL renderings
    2. - [ ] wait for offical imgui to support multi-context
-9. - [ ] FIX: imgui doesn't support callback for multiple window guis.
+9. - [x] FIX: imgui doesn't support callback for multiple window guis.
    1. - [x] a new window manager with imgui context
-   2. - [ ] cannot destroy window when there are multiple windows (imgui contexts)
+   2. - [x] cannot destroy window when there are multiple windows (imgui contexts)
 

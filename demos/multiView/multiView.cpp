@@ -8,7 +8,7 @@ using NBodyImpl = OpenGL::NBodyOpenGLImpl;
 
 namespace GUI
 {
-	struct MultiViewGui :WindowGui
+	struct MultiViewGui :GuiBlock
 	{
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool show_another_window = false;
@@ -16,11 +16,9 @@ namespace GUI
 		float f = 0.0f;
 		int counter = 0;
 
-		MultiViewGui(Window::Window* _window) :WindowGui(_window) {}
 		virtual void gui()override
 		{
 			//printf("gui()\n");
-			makeCurrent();
 			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
 			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
@@ -84,33 +82,32 @@ struct MultiViewTest
 		mainWindowData{"Main View",{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}},
 		ui(mainWindowData),
 		sm(String<char>("./")),
-		mainSim(10 * 1, false, &sm),
-		gui(nullptr)
+		mainSim(10 * 1, false, &sm)
 	{
-		mainSim.renderer.registerMainTransform(ui.mainWindow->window);
-		// bind opengl before creating gui!
+		mainSim.renderer.registerMainTransform(ui.mainWindow->window.window);
 		ui.bindOpenGLMain(&mainSim.renderer);
-		gui.create(ui.mainWindow);
-		ui.registerWindowGui(&gui);
+		ui.mainWindow->addGuiBlock(&gui);
 		::printf("Num particles: %d\n", mainSim.nbodyData.particles.particles.length);
 	}
 
 	void createNewView()
 	{
 		Window::Window::Data subWindowData{"New View", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
-		Window::Window& w = ui.createWindow(subWindowData);
-		mainSim.renderer.registerTransform(w.window);
+		Window::ImGuiWindow& w = ui.createWindow(subWindowData);
+		mainSim.renderer.registerTransform(w.window.window);
 		ui.bindOpenGL(w, &mainSim.renderer);
 	}
 
 	void loop()
 	{
-		while (ui.update(0))
+		ui.wm.swapInterval(0);
+		while (ui.update())
 		{
 			if (gui.should_create_new_view)
 			{
 				gui.should_create_new_view = false;
 				createNewView();
+				ui.wm.swapInterval(0);
 			}
 		}
 	}

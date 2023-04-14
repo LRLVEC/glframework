@@ -9,21 +9,20 @@ using NBodyImpl = OpenGL::NBodyOpenGLImpl;
 
 namespace GUI
 {
-	struct MultiSimGui :WindowGui
+	struct MultiSimGui :GuiBlock
 	{
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool show_another_window = false;
 		bool should_create_new_sub_sim = false;
 		bool vsync = false;
+		bool refresh_vsync = true;
 		float f = 0.0f;
 		int counter = 0;
 
 
-		MultiSimGui(Window::Window* _window) :WindowGui(_window) {}
 		virtual void gui()override
 		{
 			//printf("gui()\n");
-			makeCurrent();
 			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
 			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
@@ -44,6 +43,7 @@ namespace GUI
 			if (ImGui::Button("V-sync (disable to get higher fps)"))
 			{
 				vsync = !vsync;
+				refresh_vsync = true;
 			}
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -83,38 +83,35 @@ struct MultiSimTest
 	OpenGL::SourceManager sm;
 	SingleSim mainSim;
 	GUI::MultiSimGui gui;
-	List<Pair<Window::Window*, SingleSim*>> subSims;
+	List<Pair<Window::ImGuiWindow*, SingleSim*>> subSims;
 
 	MultiSimTest()
 		:
 		mainWindowData{"MainSim",{{1920, 1080}, /*resizable=*/true, /*fullscreen=*/false}},
 		ui(mainWindowData),
 		sm(String<char>("./")),
-		mainSim(10 * 1, false, &sm),
-		gui(nullptr)
+		mainSim(10 * 1, false, &sm)
 	{
-		// bind opengl before creating gui!
 		ui.bindOpenGLMain(&mainSim.renderer);
-		gui.create(ui.mainWindow);
-		ui.registerWindowGui(&gui);
+		ui.mainWindow->addGuiBlock(&gui);
 
 		::printf("Num particles: %d\n", mainSim.nbodyData.particles.particles.length);
 	}
 
-	Pair<Window::Window*, SingleSim*> createSubSim()
+	Pair<Window::ImGuiWindow*, SingleSim*> createSubSim()
 	{
 		Window::Window::Data subWindowData{"SubSim", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
-		Window::Window& w = ui.createWindow(subWindowData);
+		Window::ImGuiWindow& w = ui.createWindow(subWindowData);
 		SingleSim* subSim(new SingleSim(10 * 1, false, &sm));
 		::printf("Num particles: %d\n", subSim->nbodyData.particles.particles.length);
 		ui.bindOpenGL(w, &subSim->renderer);
-		return Pair<Window::Window*, SingleSim*>(&w, subSim);
+		return Pair<Window::ImGuiWindow*, SingleSim*>(&w, subSim);
 	}
 
 	void deleteUnusedSubSims()
 	{
 		subSims.checkLambda
-		([this](Pair<Window::Window*, SingleSim*>const& _pair)
+		([this](Pair<Window::ImGuiWindow*, SingleSim*>const& _pair)
 			{
 				if (!ui.wm.exists(_pair.data0))
 				{
@@ -128,13 +125,19 @@ struct MultiSimTest
 
 	void loop()
 	{
-		while (ui.update(gui.vsync))
+		while (ui.update())
 		{
+			if (gui.refresh_vsync)
+			{
+				ui.wm.swapInterval(gui.vsync);
+				gui.refresh_vsync = false;
+			}
 			deleteUnusedSubSims();
 			if (gui.should_create_new_sub_sim)
 			{
 				gui.should_create_new_sub_sim = false;
 				subSims.pushBack(createSubSim());
+				ui.wm.swapInterval(gui.vsync);
 			}
 		}
 	}

@@ -4,7 +4,7 @@
 
 namespace GUI
 {
-	struct TextureRendererGui :WindowGui
+	struct TextureRendererGui :GuiBlock
 	{
 		OpenGL::MandelbrotFractalData* fractalData;
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -14,16 +14,14 @@ namespace GUI
 		int counter = 0;
 
 
-		TextureRendererGui(Window::Window* _window, OpenGL::MandelbrotFractalData* _fractalData)
+		TextureRendererGui(OpenGL::MandelbrotFractalData* _fractalData)
 			:
-			WindowGui(_window),
 			fractalData(_fractalData)
 		{
 		}
 		virtual void gui()override
 		{
 			//printf("gui()\n");
-			makeCurrent();
 			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
 			ImGui::Text("Scale: %e", fractalData->scale);             // Display some text (you can use a format strings too)
@@ -89,17 +87,17 @@ struct TextureRendererTest
 		ui(mainWindowData),
 		sm(String<char>("./")),
 		fractal(mainWindowData.size.size, &sm),
-		gui(nullptr, &fractal.fractalData)
+		gui(&fractal.fractalData)
 	{
 		// bind opengl before creating gui!
 		ui.bindOpenGLMain(&fractal.renderer);
-		gui.create(ui.mainWindow);
-		ui.registerWindowGui(&gui);
+		ui.mainWindow->addGuiBlock(&gui);
 	}
 
 	void loop()
 	{
-		while (ui.update(0))
+		ui.wm.swapInterval(0);
+		while (ui.update())
 		{
 			// handle gui update
 		}
