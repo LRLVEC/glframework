@@ -142,6 +142,18 @@ namespace Window
 		{
 			return windows.id(*_window) >= 0;
 		}
+		void swapInterval(uint32_t _interval)
+		{
+			windows.traverseLambda
+			([this, _interval](ImGuiWindow const& _window)
+				{
+					_window.makeCurrent();
+					// only set the main window _interval
+					glfwSwapInterval(windows.begin->data == _window ? _interval : 0);
+					return true;
+				}
+			);
+		}
 		void render()
 		{
 			windows.traverse

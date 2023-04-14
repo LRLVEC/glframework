@@ -75,6 +75,8 @@ namespace Window
 	void ImGuiWindow::run()const
 	{
 		makeCurrent();
+		if (window.openGL)
+			window.openGL->run();
 		if (imguiContext)
 		{
 			ImGui_ImplOpenGL3_NewFrame();
@@ -83,11 +85,6 @@ namespace Window
 			for (auto g : guiBlocks)
 				if (g)g->gui();
 			ImGui::Render();
-		}
-		if (window.openGL)
-			window.openGL->run();
-		if (imguiContext)
-		{
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		}
 	}
