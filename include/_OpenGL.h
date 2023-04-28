@@ -316,13 +316,13 @@ namespace OpenGL
 			attribs.traverse([](VertexAttrib*& _vertexAttrib)
 				{
 					_vertexAttrib->bind();
-			return true;
+					return true;
 				});
 			bind();
 			attribs.traverse([](VertexAttrib*& _vertexAttrib)
 				{
 					_vertexAttrib->init();
-			return true;
+					return true;
 				});
 			unbind();
 		}
@@ -496,7 +496,7 @@ namespace OpenGL
 			void refreshButton(int, bool);
 			Math::vec2<double> operate();
 		};
-		struct BufferData :Buffer::Data
+		struct BufferData:Buffer::Data
 		{
 			Math::mat4<float>ans;
 			BufferData();
@@ -585,6 +585,7 @@ namespace OpenGL
 				bool valid;
 				Pointer();
 			};
+			Pointer current;
 			Pointer now;
 			Pointer pre;
 			bool left;
@@ -607,7 +608,6 @@ namespace OpenGL
 		Transform2D();
 		Transform2D(Data const&);
 		void init(FrameScale const&);
-		Math::vec2<double>getPos(Math::vec2<double> const&, bool _add_center = true)const;
 		void resize(int, int);
 		void operate();
 	};
@@ -719,32 +719,32 @@ namespace OpenGL
 		vertex.traverse([](Shader<VertexShader>& _shader)
 			{
 				_shader.init();
-		return true;
+				return true;
 			});
 		tessControl.traverse([](Shader<TessControlShader>& _shader)
 			{
 				_shader.init();
-		return true;
+				return true;
 			});
 		tessEvaluation.traverse([](Shader<TessEvaluationShader>& _shader)
 			{
 				_shader.init();
-		return true;
+				return true;
 			});
 		geometry.traverse([](Shader<GeometryShader>& _shader)
 			{
 				_shader.init();
-		return true;
+				return true;
 			});
 		fragment.traverse([](Shader<FragmentShader>& _shader)
 			{
 				_shader.init();
-		return true;
+				return true;
 			});
 		compute.traverse([](Shader<ComputeShader>& _shader)
 			{
 				_shader.init();
-		return true;
+				return true;
 			});
 	}
 	inline void ShaderManager::omit()
@@ -752,32 +752,32 @@ namespace OpenGL
 		vertex.traverse([](Shader<VertexShader>& _shader)
 			{
 				_shader.omit();
-		return true;
+				return true;
 			});
 		tessControl.traverse([](Shader<TessControlShader>& _shader)
 			{
 				_shader.omit();
-		return true;
+				return true;
 			});
 		tessEvaluation.traverse([](Shader<TessEvaluationShader>& _shader)
 			{
 				_shader.omit();
-		return true;
+				return true;
 			});
 		geometry.traverse([](Shader<GeometryShader>& _shader)
 			{
 				_shader.omit();
-		return true;
+				return true;
 			});
 		fragment.traverse([](Shader<FragmentShader>& _shader)
 			{
 				_shader.omit();
-		return true;
+				return true;
 			});
 		compute.traverse([](Shader<ComputeShader>& _shader)
 			{
 				_shader.omit();
-		return true;
+				return true;
 			});
 	}
 
@@ -1282,6 +1282,7 @@ namespace OpenGL
 	}
 	inline Transform2D::Mouse::Mouse()
 		:
+		current(),
 		now(),
 		pre(),
 		left(false),
@@ -1291,6 +1292,8 @@ namespace OpenGL
 	}
 	inline void Transform2D::Mouse::refreshPos(double _x, double _y)
 	{
+		current.x = _x;
+		current.y = _y;
 		if (left)
 		{
 			if (now.valid)
@@ -1356,18 +1359,6 @@ namespace OpenGL
 		size = _size;
 		updated = true;
 	}
-	inline Math::vec2<double> Transform2D::getPos(Math::vec2<double>const& _xy, bool _add_center)const
-	{
-		Math::vec2<double> window{ double(size.w), double(size.h) };
-		Math::vec2<double> r(_xy - window / 2);
-		r[1] = -r[1];// inverse y
-		r *= scale / size.w;
-		if (_add_center)
-		{
-			r += center;
-		}
-		return r;
-	}
 	inline void Transform2D::resize(int _w, int _h)
 	{
 		size.w = _w;
@@ -1382,8 +1373,12 @@ namespace OpenGL
 		dxy /= scale;
 		if (coeff != 0.0)
 		{
-			scale *= exp(coeff);
-			//center += (scale - 1) * getPos({ mouse.now.x, mouse.now.y }, false);
+			Math::vec2<double> m{mouse.current.x, mouse.current.y};
+			m[0] = (m[0] - double(size.w) / 2) / size.w;
+			m[1] = (double(size.h) / 2 - m[1]) / size.w;
+			double scale_new = scale * exp(coeff);
+			center += ((scale_new - scale)/ (scale * scale_new)) * m;
+			scale = scale_new;
 			operated = true;
 		}
 		if (dxy != 0.0)
