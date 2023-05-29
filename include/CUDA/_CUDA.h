@@ -1,13 +1,12 @@
 #pragma once
 #include <_Texture.h>
 // #include <cuda.h>
-#include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include <cuda_gl_interop.h>
 #include <time.h>
 #include <random>
 #include <_BMP.h>
-#include <iostream>
+#include <CUDA/_CUDA_Texture.h>
 
 #ifndef CUDA_CHECK_THROW
 #define NotDefinedCUDA_CHECK_THROW
@@ -401,131 +400,6 @@ namespace CUDA
 			};
 			CUDA_CHECK_THROW(cudaMemcpy3D(&cpy3Dparams));
 		}
-	};
-
-	// pure cuda texture created from cuda array
-	template<unsigned int dim>struct Texture
-	{
-		static_assert(dim&& dim < 4, "Dim must be one of 1, 2, 3!");
-	};
-
-	template<>struct Texture<1>
-	{
-		cudaArray* array;
-		cudaTextureObject_t texture;
-
-		Texture(size_t width,
-			cudaChannelFormatDesc const& channelDesc,
-			void const* src = nullptr,
-			cudaTextureAddressMode addressMode = cudaAddressModeClamp,
-			cudaTextureFilterMode filterMode = cudaFilterModeLinear,
-			cudaTextureReadMode readMode = cudaReadModeNormalizedFloat,
-			bool normalizedCoords = true)
-			:
-			array(nullptr),
-			texture(0)
-		{
-			if (width)
-			{
-				CUDA_CHECK_THROW(cudaMallocArray(&array, &channelDesc, width));
-				if (src)
-				{
-					size_t element_size = (channelDesc.x + channelDesc.y + channelDesc.z + channelDesc.w) / 8;
-					CUDA_CHECK_THROW(cudaMemcpy2DToArray(array, 0, 0, src, element_size * width, element_size * width, 1, cudaMemcpyHostToDevice));
-				}
-				cudaResourceDesc resDesc;
-				memset(&resDesc, 0, sizeof(resDesc));
-				resDesc.resType = cudaResourceTypeArray;
-				resDesc.res.array.array = array;
-				cudaTextureDesc texDesc;
-				memset(&texDesc, 0, sizeof(texDesc));
-				texDesc.addressMode[0] = addressMode;
-				texDesc.filterMode = filterMode;
-				texDesc.readMode = readMode;
-				texDesc.normalizedCoords = normalizedCoords;
-				CUDA_CHECK_PRINT(cudaCreateTextureObject(&texture, &resDesc, &texDesc, nullptr));
-			}
-		}
-
-		~Texture()
-		{
-			if (texture)
-			{
-				CUDA_CHECK_PRINT(cudaDestroyTextureObject(texture));
-				texture = 0;
-			}
-			if (array)
-			{
-				CUDA_CHECK_PRINT(cudaFreeArray(array));
-				array = nullptr;
-			}
-		}
-		operator cudaTextureObject_t()const
-		{
-			return texture;
-		}
-	};
-
-	template<>struct Texture<2>
-	{
-		cudaArray* array;
-		cudaTextureObject_t texture;
-
-		Texture(size_t width, size_t height,
-			cudaChannelFormatDesc const& channelDesc,
-			void const* src = nullptr,
-			cudaTextureAddressMode addressMode = cudaAddressModeClamp,
-			cudaTextureFilterMode filterMode = cudaFilterModeLinear,
-			cudaTextureReadMode readMode = cudaReadModeNormalizedFloat,
-			bool normalizedCoords = true)
-			:
-			array(nullptr),
-			texture(0)
-		{
-			if (width && height)
-			{
-				CUDA_CHECK_THROW(cudaMallocArray(&array, &channelDesc, width, height));
-				if (src)
-				{
-					size_t element_size = (channelDesc.x + channelDesc.y + channelDesc.z + channelDesc.w) / 8;
-					CUDA_CHECK_THROW(cudaMemcpy2DToArray(array, 0, 0, src, element_size * width, element_size * width, height, cudaMemcpyHostToDevice));
-				}
-				cudaResourceDesc resDesc;
-				memset(&resDesc, 0, sizeof(resDesc));
-				resDesc.resType = cudaResourceTypeArray;
-				resDesc.res.array.array = array;
-				cudaTextureDesc texDesc;
-				memset(&texDesc, 0, sizeof(texDesc));
-				texDesc.addressMode[0] = addressMode;
-				texDesc.filterMode = filterMode;
-				texDesc.readMode = readMode;
-				texDesc.normalizedCoords = normalizedCoords;
-				CUDA_CHECK_PRINT(cudaCreateTextureObject(&texture, &resDesc, &texDesc, nullptr));
-			}
-		}
-
-		~Texture()
-		{
-			if (texture)
-			{
-				CUDA_CHECK_PRINT(cudaDestroyTextureObject(texture));
-				texture = 0;
-			}
-			if (array)
-			{
-				CUDA_CHECK_PRINT(cudaFreeArray(array));
-				array = nullptr;
-			}
-		}
-
-		operator cudaTextureObject_t()const
-		{
-			return texture;
-		}
-	};
-
-	template<>struct Texture<3>
-	{
 	};
 
 	struct TextureCube
