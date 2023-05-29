@@ -93,7 +93,7 @@ struct MultiViewTest
 	void createNewView()
 	{
 		Window::Window::Data subWindowData{"New View", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
-		Window::ImGuiWindow& w = ui.createWindow(subWindowData);
+		Window::WindowWithImGui& w = ui.createWindow(subWindowData);
 		mainSim.renderer.registerTransform(w.window.window);
 		ui.bindOpenGL(w, &mainSim.renderer);
 	}

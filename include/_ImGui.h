@@ -18,7 +18,7 @@ namespace Window
 {
 	using GuiBlock = GUI::GuiBlock;
 	// window with imgui context
-	struct ImGuiWindow
+	struct WindowWithImGui
 	{
 		Window window;
 		ImGuiContext* imguiContext;
@@ -26,9 +26,9 @@ namespace Window
 		GLFWcharfun charFun;// for imgui
 		std::vector<GuiBlock*> guiBlocks;
 
-		ImGuiWindow(Window::Data const& _data, bool _create_imgui_ctx, Window::CallbackFun const& _callback, GLFWcharfun _charFun, GuiBlock* _guiBlock);
-		~ImGuiWindow();
-		bool operator==(ImGuiWindow const& _window) const
+		WindowWithImGui(Window::Data const& _data, bool _create_imgui_ctx, Window::CallbackFun const& _callback, GLFWcharfun _charFun, GuiBlock* _guiBlock);
+		~WindowWithImGui();
+		bool operator==(WindowWithImGui const& _window) const
 		{
 			return window.window == _window.window.window;
 		}
@@ -46,56 +46,62 @@ namespace Window
 	struct ImGuiWindowManager
 	{
 		static ImGuiWindowManager* __windowManager;
+		static bool imguiWantCaptureMouse();
+		static bool imguiWantCaptureKeyboard();
 		static void frameSizeCallback(GLFWwindow* _window, int _w, int _h)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
 			w.window.openGL->frameSize(_window, _w, _h);
 		}
 		static void framePosCallback(GLFWwindow* _window, int _w, int _h)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
 			w.window.openGL->framePos(_window, _w, _h);
 		}
 		static void frameFocusCallback(GLFWwindow* _window, int _focused)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
 			w.window.openGL->frameFocus(_window, _focused);
 			ImGui_ImplGlfw_WindowFocusCallback(w.window.window, _focused);
 		}
 		static void mouseButtonCallback(GLFWwindow* _window, int _button, int _action, int _mods)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
-			w.window.openGL->mouseButton(_window, _button, _action, _mods);
+			if (!imguiWantCaptureMouse())
+				w.window.openGL->mouseButton(_window, _button, _action, _mods);
 			ImGui_ImplGlfw_MouseButtonCallback(w.window.window, _button, _action, _mods);
 		}
 		static void mousePosCallback(GLFWwindow* _window, double _x, double _y)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
-			w.window.openGL->mousePos(_window, _x, _y);
+			if (!imguiWantCaptureMouse())
+				w.window.openGL->mousePos(_window, _x, _y);
 			ImGui_ImplGlfw_CursorPosCallback(w.window.window, _x, _y);
 		}
 		static void mouseScrollCallback(GLFWwindow* _window, double _x, double _y)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
-			w.window.openGL->mouseScroll(_window, _x, _y);
+			if (!imguiWantCaptureMouse())
+				w.window.openGL->mouseScroll(_window, _x, _y);
 			ImGui_ImplGlfw_ScrollCallback(w.window.window, _x, _y);
 		}
 		static void keyCallback(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
-			w.window.openGL->key(_window, _key, _scancode, _action, _mods);
+			if (!imguiWantCaptureKeyboard())
+				w.window.openGL->key(_window, _key, _scancode, _action, _mods);
 			ImGui_ImplGlfw_KeyCallback(w.window.window, _key, _scancode, _action, _mods);
 		}
 		static void charCallback(GLFWwindow* _window, unsigned int _c)
 		{
-			ImGuiWindow& w = __windowManager->find(_window);
+			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
 			ImGui_ImplGlfw_CharCallback(w.window.window, _c);
 		}
@@ -114,7 +120,7 @@ namespace Window
 			}
 		};
 
-		List<ImGuiWindow> windows;
+		List<WindowWithImGui> windows;
 
 		ImGuiWindowManager()
 		{
@@ -123,29 +129,29 @@ namespace Window
 		}
 		ImGuiWindowManager(Window::Data const& _data, GuiBlock* _guiBlock = nullptr, bool _create_imgui_ctx = true): ImGuiWindowManager()
 		{
-			windows.pushBack(ImGuiWindow(_data, _create_imgui_ctx, callbackFun, charCallback, _guiBlock));
+			windows.pushBack(WindowWithImGui(_data, _create_imgui_ctx, callbackFun, charCallback, _guiBlock));
 		}
-		ImGuiWindow& createWindow(Window::Data const& _data, GuiBlock* _guiBlock = nullptr, bool _create_imgui_ctx = true)
+		WindowWithImGui& createWindow(Window::Data const& _data, GuiBlock* _guiBlock = nullptr, bool _create_imgui_ctx = true)
 		{
-			windows.pushBack(ImGuiWindow(_data, _create_imgui_ctx, callbackFun, charCallback, _guiBlock));
+			windows.pushBack(WindowWithImGui(_data, _create_imgui_ctx, callbackFun, charCallback, _guiBlock));
 			return windows.end->data;
 		}
 		void makeCurrent(unsigned int _num)
 		{
 			windows[_num].data.makeCurrent();
 		}
-		ImGuiWindow& find(GLFWwindow* const _window)
+		WindowWithImGui& find(GLFWwindow* const _window)
 		{
 			return windows.find(_window).data;
 		}
-		bool exists(ImGuiWindow* _window)const
+		bool exists(WindowWithImGui* _window)const
 		{
 			return windows.id(*_window) >= 0;
 		}
 		void swapInterval(uint32_t _interval)
 		{
 			windows.traverseLambda
-			([this, _interval](ImGuiWindow const& _window)
+			([this, _interval](WindowWithImGui const& _window)
 				{
 					_window.makeCurrent();
 					// only set the main window _interval
@@ -157,7 +163,7 @@ namespace Window
 		void render()
 		{
 			windows.traverse
-			([](ImGuiWindow const& _window)
+			([](WindowWithImGui const& _window)
 				{
 					_window.run();
 					_window.window.swapBuffers();
@@ -167,7 +173,7 @@ namespace Window
 		}
 		bool close()
 		{
-			windows.check([](ImGuiWindow const& _window)
+			windows.check([](WindowWithImGui const& _window)
 				{
 					if (glfwWindowShouldClose(_window.window.window))
 						return false;
@@ -178,7 +184,7 @@ namespace Window
 		}
 		void closeAll()
 		{
-			windows.check([](ImGuiWindow const& _window)
+			windows.check([](WindowWithImGui const& _window)
 				{
 					_window.makeCurrent();
 					glfwSetWindowShouldClose(_window.window.window, true);
@@ -189,7 +195,7 @@ namespace Window
 		}
 		void closeAllButFirst()
 		{
-			windows.checkLambda([this](ImGuiWindow const& _window)
+			windows.checkLambda([this](WindowWithImGui const& _window)
 				{
 					if (_window == windows.begin->data)
 						return true;
@@ -213,17 +219,17 @@ namespace GUI
 		static OpenGL::OpenGLInit openglInit;
 		Window::ImGuiWindowManager wm;
 		// Window::WindowManager wm;
-		Window::ImGuiWindow* mainWindow;
+		Window::WindowWithImGui* mainWindow;
 
 		UserInterface() = delete;
 		UserInterface(Window::Window::Data const& _data);
 		// print render gpu infomation
 		static void printInfo();
 		// create new window
-		Window::ImGuiWindow& createWindow(Window::Window::Data const& _data);
+		Window::WindowWithImGui& createWindow(Window::Window::Data const& _data);
 
 		// bind OpenGL class to window
-		void bindOpenGL(Window::ImGuiWindow& _window, OpenGL::OpenGL* _openGL);
+		void bindOpenGL(Window::WindowWithImGui& _window, OpenGL::OpenGL* _openGL);
 
 		// bind OpenGL class to main window
 		void bindOpenGLMain(OpenGL::OpenGL* _openGL);

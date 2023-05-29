@@ -83,7 +83,7 @@ struct MultiSimTest
 	OpenGL::SourceManager sm;
 	SingleSim mainSim;
 	GUI::MultiSimGui gui;
-	List<Pair<Window::ImGuiWindow*, SingleSim*>> subSims;
+	List<Pair<Window::WindowWithImGui*, SingleSim*>> subSims;
 
 	MultiSimTest()
 		:
@@ -99,20 +99,20 @@ struct MultiSimTest
 		::printf("Num particles: %d\n", mainSim.nbodyData.particles.particles.length);
 	}
 
-	Pair<Window::ImGuiWindow*, SingleSim*> createSubSim()
+	Pair<Window::WindowWithImGui*, SingleSim*> createSubSim()
 	{
 		Window::Window::Data subWindowData{"SubSim", {{800, 800}, /*resizable=*/true, /*fullscreen=*/false}};
-		Window::ImGuiWindow& w = ui.createWindow(subWindowData);
+		Window::WindowWithImGui& w = ui.createWindow(subWindowData);
 		SingleSim* subSim(new SingleSim(10 * 1, false, &sm));
 		::printf("Num particles: %d\n", subSim->nbodyData.particles.particles.length);
 		ui.bindOpenGL(w, &subSim->renderer);
-		return Pair<Window::ImGuiWindow*, SingleSim*>(&w, subSim);
+		return Pair<Window::WindowWithImGui*, SingleSim*>(&w, subSim);
 	}
 
 	void deleteUnusedSubSims()
 	{
 		subSims.checkLambda
-		([this](Pair<Window::ImGuiWindow*, SingleSim*>const& _pair)
+		([this](Pair<Window::WindowWithImGui*, SingleSim*>const& _pair)
 			{
 				if (!ui.wm.exists(_pair.data0))
 				{

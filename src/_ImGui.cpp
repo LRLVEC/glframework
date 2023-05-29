@@ -1,11 +1,12 @@
 #include <_ImGui.h>
 #include <_Pair.h>
+#include <imgui/imgui_internal.h>
 
 namespace Window
 {
 	ImGuiWindowManager* ImGuiWindowManager::__windowManager = nullptr;
-	// ImGuiWindow
-	ImGuiWindow::ImGuiWindow(Window::Data const& _data, bool _create_imgui_ctx, Window::CallbackFun const& _callback, GLFWcharfun _charFun, GuiBlock* _guiBlock)
+	// WindowWithImGui
+	WindowWithImGui::WindowWithImGui(Window::Data const& _data, bool _create_imgui_ctx, Window::CallbackFun const& _callback, GLFWcharfun _charFun, GuiBlock* _guiBlock)
 		:
 		window(_data, _callback),
 		imguiContext(nullptr),
@@ -28,7 +29,7 @@ namespace Window
 		glfwSetCharCallback(window.window, charFun);
 	}
 
-	ImGuiWindow::~ImGuiWindow()
+	WindowWithImGui::~WindowWithImGui()
 	{
 		if (window.window)
 		{
@@ -52,13 +53,13 @@ namespace Window
 		}
 	}
 
-	void ImGuiWindow::init(OpenGL::OpenGL* _openGL)
+	void WindowWithImGui::init(OpenGL::OpenGL* _openGL)
 	{
 		makeCurrent();
 		window.init(_openGL);
 	}
 
-	void ImGuiWindow::makeCurrent()const
+	void WindowWithImGui::makeCurrent()const
 	{
 		glfwMakeContextCurrent(window.window);
 		if (imguiContext)
@@ -67,12 +68,12 @@ namespace Window
 		}
 	}
 
-	void ImGuiWindow::addGuiBlock(GuiBlock* _guiBlock)
+	void WindowWithImGui::addGuiBlock(GuiBlock* _guiBlock)
 	{
 		guiBlocks.emplace_back(_guiBlock);
 	}
 
-	void ImGuiWindow::run()const
+	void WindowWithImGui::run()const
 	{
 		makeCurrent();
 		if (window.openGL)
@@ -87,6 +88,24 @@ namespace Window
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		}
+	}
+
+	bool ImGuiWindowManager::imguiWantCaptureMouse()
+	{
+		// assert that glfw window is already set current
+		ImGuiContext* imguiContext = ImGui::GetCurrentContext();
+		if (imguiContext)
+			return imguiContext->IO.WantCaptureMouse;
+		else return false;
+	}
+
+	bool ImGuiWindowManager::imguiWantCaptureKeyboard()
+	{
+		// assert that glfw window is already set current
+		ImGuiContext* imguiContext = ImGui::GetCurrentContext();
+		if (imguiContext)
+			return imguiContext->IO.WantCaptureKeyboard;
+		else return false;
 	}
 }
 
@@ -108,12 +127,12 @@ namespace GUI
 		openglInit.printRenderer();
 	}
 
-	Window::ImGuiWindow& UserInterface::createWindow(Window::Window::Data const& _data)
+	Window::WindowWithImGui& UserInterface::createWindow(Window::Window::Data const& _data)
 	{
 		return wm.createWindow(_data);
 	}
 
-	void UserInterface::bindOpenGL(Window::ImGuiWindow& _window, OpenGL::OpenGL* _openGL)
+	void UserInterface::bindOpenGL(Window::WindowWithImGui& _window, OpenGL::OpenGL* _openGL)
 	{
 		_window.init(_openGL);
 	}
