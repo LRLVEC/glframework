@@ -92,6 +92,8 @@ namespace CUDA
 		cudaArray* array;
 		cudaTextureObject_t texture;
 
+		Texture() :array(nullptr), texture(0) {}
+
 		Texture(size_t width, size_t height,
 			cudaChannelFormatDesc const& channelDesc,
 			void const* src = nullptr,
@@ -99,12 +101,36 @@ namespace CUDA
 			cudaTextureFilterMode filterMode = cudaFilterModeLinear,
 			cudaTextureReadMode readMode = cudaReadModeNormalizedFloat,
 			bool normalizedCoords = true)
-			:
-			array(nullptr),
-			texture(0)
+			: Texture()
+		{
+			create(width, height, channelDesc, src, addressMode, filterMode, readMode, normalizedCoords);
+		}
+
+		~Texture()
+		{
+			if (texture)
+			{
+				CUDA_CHECK_PRINT(cudaDestroyTextureObject(texture));
+				texture = 0;
+			}
+			if (array)
+			{
+				CUDA_CHECK_PRINT(cudaFreeArray(array));
+				array = nullptr;
+			}
+		}
+
+		void create(size_t width, size_t height,
+			cudaChannelFormatDesc const& channelDesc,
+			void const* src = nullptr,
+			cudaTextureAddressMode addressMode = cudaAddressModeClamp,
+			cudaTextureFilterMode filterMode = cudaFilterModeLinear,
+			cudaTextureReadMode readMode = cudaReadModeNormalizedFloat,
+			bool normalizedCoords = true)
 		{
 			if (width && height)
 			{
+				this->~Texture();
 				CUDA_CHECK_THROW(cudaMallocArray(&array, &channelDesc, width, height));
 				if (src)
 				{
@@ -122,20 +148,6 @@ namespace CUDA
 				texDesc.readMode = readMode;
 				texDesc.normalizedCoords = normalizedCoords;
 				CUDA_CHECK_PRINT(cudaCreateTextureObject(&texture, &resDesc, &texDesc, nullptr));
-			}
-		}
-
-		~Texture()
-		{
-			if (texture)
-			{
-				CUDA_CHECK_PRINT(cudaDestroyTextureObject(texture));
-				texture = 0;
-			}
-			if (array)
-			{
-				CUDA_CHECK_PRINT(cudaFreeArray(array));
-				array = nullptr;
 			}
 		}
 
