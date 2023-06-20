@@ -65,7 +65,8 @@ namespace Window
 			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
 			w.window.openGL->frameFocus(_window, _focused);
-			ImGui_ImplGlfw_WindowFocusCallback(w.window.window, _focused);
+			if(w.imguiContext)
+				ImGui_ImplGlfw_WindowFocusCallback(w.window.window, _focused);
 		}
 		static void mouseButtonCallback(GLFWwindow* _window, int _button, int _action, int _mods)
 		{
@@ -73,7 +74,8 @@ namespace Window
 			w.makeCurrent();
 			if (!imguiWantCaptureMouse())
 				w.window.openGL->mouseButton(_window, _button, _action, _mods);
-			ImGui_ImplGlfw_MouseButtonCallback(w.window.window, _button, _action, _mods);
+			if(w.imguiContext)
+				ImGui_ImplGlfw_MouseButtonCallback(w.window.window, _button, _action, _mods);
 		}
 		static void mousePosCallback(GLFWwindow* _window, double _x, double _y)
 		{
@@ -81,7 +83,8 @@ namespace Window
 			w.makeCurrent();
 			if (!imguiWantCaptureMouse())
 				w.window.openGL->mousePos(_window, _x, _y);
-			ImGui_ImplGlfw_CursorPosCallback(w.window.window, _x, _y);
+			if(w.imguiContext)
+				ImGui_ImplGlfw_CursorPosCallback(w.window.window, _x, _y);
 		}
 		static void mouseScrollCallback(GLFWwindow* _window, double _x, double _y)
 		{
@@ -89,7 +92,8 @@ namespace Window
 			w.makeCurrent();
 			if (!imguiWantCaptureMouse())
 				w.window.openGL->mouseScroll(_window, _x, _y);
-			ImGui_ImplGlfw_ScrollCallback(w.window.window, _x, _y);
+			if(w.imguiContext)
+				ImGui_ImplGlfw_ScrollCallback(w.window.window, _x, _y);
 		}
 		static void keyCallback(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods)
 		{
@@ -97,13 +101,15 @@ namespace Window
 			w.makeCurrent();
 			if (!imguiWantCaptureKeyboard())
 				w.window.openGL->key(_window, _key, _scancode, _action, _mods);
-			ImGui_ImplGlfw_KeyCallback(w.window.window, _key, _scancode, _action, _mods);
+			if(w.imguiContext)
+				ImGui_ImplGlfw_KeyCallback(w.window.window, _key, _scancode, _action, _mods);
 		}
 		static void charCallback(GLFWwindow* _window, unsigned int _c)
 		{
 			WindowWithImGui& w = __windowManager->find(_window);
 			w.makeCurrent();
-			ImGui_ImplGlfw_CharCallback(w.window.window, _c);
+			if(w.imguiContext)
+				ImGui_ImplGlfw_CharCallback(w.window.window, _c);
 		}
 		static constexpr Window::CallbackFun callbackFun
 		{
@@ -222,7 +228,7 @@ namespace GUI
 		Window::WindowWithImGui* mainWindow;
 
 		UserInterface() = delete;
-		UserInterface(Window::Window::Data const& _data);
+		UserInterface(Window::Window::Data const& _data, bool _create_imgui_ctx = true);
 		// print render gpu infomation
 		static void printInfo();
 		// create new window
@@ -237,7 +243,7 @@ namespace GUI
 		// get inputs and update one frame for all windows, returns whether main window is alive, _interval is for glfwSwapInterval
 		bool update();
 
-		// minimal loop of drawing windows and their UIs. Since multi-context imgui is not supported yet (comming soon), 
+		// minimal loop of drawing windows and their UIs. Since multi-context imgui is not supported yet (coming soon), 
 		// so use 1 WindowGui at most.
 		void minimalLoop();
 	};

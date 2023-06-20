@@ -13,4 +13,8 @@
 9. - [x] FIX: imgui doesn't support callback for multiple window guis.
    1. - [x] a new window manager with imgui context
    2. - [x] cannot destroy window when there are multiple windows (imgui contexts)
-
+10. - [ ] **Feature**: support for OpenXR
+    1. - [x] user handle input
+    2. - [ ] better architecture
+    3. - [ ] 3d ui
+    4. - [ ] ubuntu support

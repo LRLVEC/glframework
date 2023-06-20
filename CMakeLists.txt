@@ -11,6 +11,7 @@ endif()
 
 option(GLFRAMEWORK_BUILD_DEMOS "Build glframework test programs" ON)
 option(GLFRAMEWORK_ENABLE_CUDA "Build glframework with cuda implemented NBody" ON)
+option(GLFRAMEWORK_BUILD_OPENXR "Build glframework with OpenXR support" ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -26,6 +27,7 @@ set(GLFW_USE_CHDIR OFF CACHE BOOL " " FORCE)
 set(GLFW_VULKAN_STATIC OFF CACHE BOOL " " FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL " " FORCE)
 
+# Add GLFW
 add_subdirectory(dependencies/glfw)
 
 set_target_properties(glfw PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
@@ -45,6 +47,8 @@ list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/depende
 list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui")
 list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies")
 list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+# Add GLEW
 if (MSVC)
 # Build glew from local repo
 	message("Use MSVC!")
@@ -66,7 +70,19 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# Add OpenXR
+if (GLFRAMEWORK_BUILD_OPENXR)
+	find_package(OpenXR CONFIG QUIET)
+	if(OpenXR_FOUND)
+		list(APPEND GLFRAMEWORK_INCLUDE_DIRECTORIES OpenXR::Headers)
+		list(APPEND GLFRAMEWORK_LIBRARIES OpenXR::openxr_loader)
+		list(APPEND GLFRAMEWORK_SOURCES
+			"src/_OpenXR.cpp"
+		)
+	endif()
+endif()
 
+# Add CUDA
 include(CheckLanguage)
 check_language(CUDA)
 list(APPEND GLFRAMEWORK_SOURCES
@@ -120,5 +136,8 @@ if(GLFRAMEWORK_BUILD_DEMOS)
 	add_subdirectory(demos/multiThread)
 	if (CMAKE_CUDA_COMPILER AND GLFRAMEWORK_ENABLE_CUDA)
 		add_subdirectory(demos/renderTexture)
+	endif()
+	if (GLFRAMEWORK_BUILD_OPENXR AND OpenXR_FOUND)
+		add_subdirectory(demos/galaxyInHand)
 	endif()
 endif()

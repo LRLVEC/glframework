@@ -112,9 +112,9 @@ namespace Window
 namespace GUI
 {
 	// UserInterface
-	UserInterface::UserInterface(Window::Window::Data const& _data)
+	UserInterface::UserInterface(Window::Window::Data const& _data, bool _create_imgui_ctx)
 		:
-		wm(_data),
+		wm(_data, nullptr, _create_imgui_ctx),
 		mainWindow(&wm.windows.begin->data)
 	{
 		if (__userInterface)throw std::runtime_error{ "Cannot construct new UserInterface if there exists one!" };

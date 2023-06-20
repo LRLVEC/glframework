@@ -1,0 +1,13 @@
+Program:	Renderer
+{
+	Vertex		0
+	Fragment	0
+}
+Program:	VelocityCalculation
+{
+	Compute		0
+}
+Program:	PositionCalculation
+{
+	Compute		0
+}
