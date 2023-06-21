@@ -15,6 +15,7 @@
    2. - [x] cannot destroy window when there are multiple windows (imgui contexts)
 10. - [ ] **Feature**: support for OpenXR
     1. - [x] user handle input
-    2. - [ ] better architecture
-    3. - [ ] 3d ui
-    4. - [ ] ubuntu support
+    2. - [x] depth submission (bad performance/lag)
+    3. - [ ] better architecture
+    4. - [ ] 3d ui
+    5. - [ ] ubuntu support

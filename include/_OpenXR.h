@@ -53,7 +53,7 @@ namespace OpenXR
 		void printInfo()const
 		{
 			printf("Available Layers: %lld\n", layers.size());
-			for (const XrApiLayerProperties& layer : layers)
+			for (XrApiLayerProperties const& layer : layers)
 			{
 				printf("SpecVersion = ");
 				printf("%d.%d.%d\n", XR_VERSION_MAJOR(layer.specVersion), XR_VERSION_MINOR(layer.specVersion), XR_VERSION_PATCH(layer.specVersion));
@@ -71,19 +71,90 @@ namespace OpenXR
 		}
 	};
 
+	struct Extension
+	{
+		std::vector<XrExtensionProperties> extensions;
+
+		Extension(char const* layer_name = nullptr)
+		{
+			uint32_t propertyCapacity = 0;
+			xrEnumerateInstanceExtensionProperties(layer_name, 0, &propertyCapacity, nullptr);
+			extensions.resize(propertyCapacity, { XR_TYPE_EXTENSION_PROPERTIES });
+			xrEnumerateInstanceExtensionProperties(layer_name, propertyCapacity, &propertyCapacity, extensions.data());
+		}
+
+		void printInfo()const
+		{
+			printf("Available Extensions: %lld\n", extensions.size());
+			for (XrExtensionProperties const& extension : extensions)
+			{
+				printf("\t%s, ver %d%\n", extension.extensionName,
+					extension.extensionVersion);
+			}
+		}
+
+		bool check_extension(char const* name)const
+		{
+			return std::find_if(extensions.begin(), extensions.end(), [name](XrExtensionProperties const& prop)
+				{
+					if (std::strcmp(prop.extensionName, name) == 0)
+						return true;
+					return false;
+				}) != extensions.end();
+		}
+
+		std::vector<bool> check_extensions(std::vector<char const*> names)const
+		{
+			std::vector<bool> valid(names.size());
+			std::transform(names.begin(), names.end(), valid.begin(),
+				[&](char const* name) {return check_extension(name);});
+			return valid;
+		}
+	};
+
 	struct Instance
 	{
 		XrInstance instance;
+		Extension extension;
+		std::vector<char const*> validExtensions;
+		bool enabledDepth;
 
-		Instance(char const* app_name = nullptr)
+		Instance(char const* app_name = nullptr, std::vector<char const*> extraExtensions = {})
 			:
-			instance(XR_NULL_HANDLE)
+			instance(XR_NULL_HANDLE),
+			validExtensions({ XR_KHR_OPENGL_ENABLE_EXTENSION_NAME }),
+			enabledDepth(false)
 		{
-			char const* extensions[] = { XR_KHR_OPENGL_ENABLE_EXTENSION_NAME };
+			if (!extension.check_extension(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
+			{
+				printf("Error! Platform doesn't support OpenGL extension!\n");
+				return;
+			}
+
+			// not enable XR_KHR_composition_layer_depth by default
+			// since there may be performance issue when enabled
+			// extraExtensions.push_back(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+			if (extraExtensions.size())
+			{
+				std::vector<bool> valid = extension.check_extensions(extraExtensions);
+				for (uint32_t c0(0);c0 < extraExtensions.size();++c0)
+				{
+					if (valid[c0])
+						validExtensions.push_back(extraExtensions[c0]);
+				}
+			}
+			if (std::find_if(validExtensions.begin(), validExtensions.end(), [](char const* ext) {
+				if (std::strcmp(ext, XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) == 0)
+					return true;
+				return false;}) != validExtensions.end())
+			{
+				enabledDepth = true;
+			}
+
 			XrInstanceCreateInfo instance_create_info{ XR_TYPE_INSTANCE_CREATE_INFO };
 			instance_create_info.next = nullptr;
-			instance_create_info.enabledExtensionCount = 1;
-			instance_create_info.enabledExtensionNames = extensions;
+			instance_create_info.enabledExtensionCount = validExtensions.size();
+			instance_create_info.enabledExtensionNames = validExtensions.data();
 			instance_create_info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
 			if (app_name)
 				strcpy(instance_create_info.applicationInfo.applicationName, app_name);
@@ -92,7 +163,6 @@ namespace OpenXR
 			{
 				printf("failed to create xr instance %s\n", app_name);
 			}
-			printInfo();
 		}
 		Instance(Instance const&) = delete;
 		Instance(Instance&& _i) noexcept
@@ -128,6 +198,11 @@ namespace OpenXR
 			XrVersion ver = instance_properties.runtimeVersion;
 			printf("Instance Runtime Name = %s\n", instance_properties.runtimeName);
 			printf("Instance Runtime Version = %d.%d.%d\n", XR_VERSION_MAJOR(ver), XR_VERSION_MINOR(ver), XR_VERSION_PATCH(ver));
+			printf("Enabled Extensions: %d\n", validExtensions.size());
+			for (auto name : validExtensions)
+			{
+				printf("\t%s\n", name);
+			}
 		}
 
 	};
@@ -417,6 +492,89 @@ namespace OpenXR
 		}
 	};
 
+	struct FrameBuffer
+	{
+		uint32_t width;
+		uint32_t height;
+		GLuint colorTexture;
+		GLuint depthTextureOrBuffer;
+		GLuint frameBuffer;
+		bool enabledDepthTexture;
+
+		FrameBuffer(bool _create = false)
+			:
+			width(0),
+			height(0),
+			colorTexture(0),
+			depthTextureOrBuffer(0),
+			frameBuffer(0),
+			enabledDepthTexture(false)
+		{
+			if (_create)create();
+		}
+
+		~FrameBuffer()
+		{
+			if (!enabledDepthTexture)
+			{
+				glDeleteRenderbuffers(1, &depthTextureOrBuffer);
+			}
+			glDeleteFramebuffers(1, &frameBuffer);
+		}
+
+		void create()
+		{
+			glGenFramebuffers(1, &frameBuffer);
+		}
+
+		void bind(GLuint _colorTexture, GLuint _depthTexture = 0)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+			// get width & height from color texture
+			colorTexture = _colorTexture;
+			GLint _width(0), _height(0);
+			glBindTexture(GL_TEXTURE_2D, colorTexture);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &_width);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &_height);
+
+			if (!_depthTexture)
+			{
+				enabledDepthTexture = false;
+				// create depth render buffer when new resolution depth is required
+				if (width != _width || height != _height)
+				{
+					if (depthTextureOrBuffer)
+						glDeleteRenderbuffers(1, &depthTextureOrBuffer);
+
+					glGenRenderbuffers(1, &depthTextureOrBuffer);
+					glBindRenderbuffer(GL_RENDERBUFFER, depthTextureOrBuffer);
+					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, _width, _height);
+					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthTextureOrBuffer);
+				}
+			}
+			else
+			{
+				// use given depth texture
+				enabledDepthTexture = true;
+				depthTextureOrBuffer = _depthTexture;
+				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTextureOrBuffer, 0);
+			}
+			width = _width;
+			height = _height;
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+		}
+
+		void unbind()
+		{
+			colorTexture = 0;
+			if (enabledDepthTexture)
+			{
+				depthTextureOrBuffer = 0;
+			}
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+	};
+
 	struct Swapchain
 	{
 		XrSwapchain swapchain;
@@ -424,7 +582,7 @@ namespace OpenXR
 		int32_t height;
 		Session* session;
 
-		Swapchain(Session* _session, int64_t _colorSwapchainFormat, XrViewConfigurationView const& _view_config)
+		Swapchain(Session* _session, int64_t _colorSwapchainFormat, XrViewConfigurationView const& _view_config, uint64_t _usage_flags)
 			:
 			swapchain(XR_NULL_HANDLE),
 			width(0),
@@ -432,7 +590,7 @@ namespace OpenXR
 			session(_session)
 		{
 			XrSwapchainCreateInfo swapchainCreateInfo{ XR_TYPE_SWAPCHAIN_CREATE_INFO };
-			swapchainCreateInfo.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+			swapchainCreateInfo.usageFlags = _usage_flags;
 			swapchainCreateInfo.format = _colorSwapchainFormat;
 			swapchainCreateInfo.sampleCount = _view_config.recommendedSwapchainSampleCount;
 			swapchainCreateInfo.width = _view_config.recommendedImageRectWidth;
@@ -483,7 +641,7 @@ namespace OpenXR
 			return session->session;
 		}
 
-		void aquire(uint32_t* swapchainImageIndex)
+		void acquire(uint32_t* swapchainImageIndex)
 		{
 			XrSwapchainImageAcquireInfo acquireInfo{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
 			xrAcquireSwapchainImage(swapchain, &acquireInfo, swapchainImageIndex);
@@ -507,9 +665,9 @@ namespace OpenXR
 	{
 		std::vector<XrSwapchainImageOpenGLKHR> swapchainImages;
 
-		SwapchainImages(Session* _session, int64_t _colorSwapchainFormat, XrViewConfigurationView const& _view_config)
+		SwapchainImages(Session* _session, int64_t _colorSwapchainFormat, XrViewConfigurationView const& _view_config, uint64_t _usage_flags)
 			:
-			Swapchain(_session, _colorSwapchainFormat, _view_config)
+			Swapchain(_session, _colorSwapchainFormat, _view_config, _usage_flags)
 		{
 			uint32_t imageCount;
 			xrEnumerateSwapchainImages(swapchain, 0, &imageCount, nullptr);
@@ -526,17 +684,20 @@ namespace OpenXR
 	struct Views
 	{
 		int64_t colorSwapchainFormat;
+		int64_t depthSwapchainFormat;
 		XrViewConfigurationType viewType;
 		uint32_t validViewCount;
 		std::vector<XrView> views;
 		std::vector<XrViewConfigurationType> validViewType;
 		std::vector<XrViewConfigurationView> viewConfigs;
-		std::vector<SwapchainImages> swapchainImages;
+		std::vector<SwapchainImages> colorSwapchainImages;
+		std::vector<SwapchainImages> depthSwapchainImages;
 		Session* session;
 
 		Views(Session* _session, XrViewConfigurationType _view_config_type = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO)
 			:
 			colorSwapchainFormat(-1),
+			depthSwapchainFormat(-1),
 			viewType(_view_config_type),
 			validViewCount(0),
 			session(_session)
@@ -570,12 +731,24 @@ namespace OpenXR
 			views.resize(view_count, { XR_TYPE_VIEW });
 			xrEnumerateViewConfigurationViews(*session, *session, viewType, view_count, &view_count, viewConfigs.data());
 
-			select_swapchain_format();
+			select_swapchain_formats();
 			for (uint32_t i(0); i < view_count; ++i)
-				swapchainImages.push_back(SwapchainImages(session, colorSwapchainFormat, viewConfigs[i]));
+				colorSwapchainImages.push_back(SwapchainImages(session, colorSwapchainFormat, viewConfigs[i],
+					XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT));
+			if (enabledDepth())
+			{
+				for (uint32_t i(0); i < view_count; ++i)
+					depthSwapchainImages.push_back(SwapchainImages(session, depthSwapchainFormat, viewConfigs[i],
+						XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT));
+			}
 		}
 
-		void select_swapchain_format()
+		bool enabledDepth()const
+		{
+			return session->system->instance->enabledDepth;
+		}
+
+		void select_swapchain_formats()
 		{
 			uint32_t swapchainFormatCount;
 			xrEnumerateSwapchainFormats(*session, 0, &swapchainFormatCount, nullptr);
@@ -591,19 +764,30 @@ namespace OpenXR
 			};
 			for (auto fmt : SupportedColorSwapchainFormats)
 			{
-				bool found(false);
-				for (auto valid_fmt : swapchainFormats)
-				{
-					if (valid_fmt == fmt)
-					{
-						found = true;
-						break;
-					}
-				}
+				bool found(std::find(swapchainFormats.begin(), swapchainFormats.end(), fmt) != swapchainFormats.end());
 				if (found)
 				{
 					colorSwapchainFormat = (int64_t)fmt;
 					break;
+				}
+			}
+
+			if (enabledDepth())
+			{
+				constexpr int64_t SupportedDepthSwapchainFormats[] =
+				{
+					GL_DEPTH_COMPONENT32F,
+					GL_DEPTH_COMPONENT24,
+					GL_DEPTH_COMPONENT16,
+				};
+				for (auto fmt : SupportedDepthSwapchainFormats)
+				{
+					bool found(std::find(swapchainFormats.begin(), swapchainFormats.end(), fmt) != swapchainFormats.end());
+					if (found)
+					{
+						depthSwapchainFormat = fmt;
+						break;
+					}
 				}
 			}
 		}
@@ -714,10 +898,27 @@ namespace OpenXR
 			case OpenGL::TextureFormat::RGBA8Snorm: printf("RGBA8Snorm\n"); break;
 			default: printf("Unknown!\n"); break;
 			}
-			for (uint32_t i(0); i < swapchainImages.size(); ++i)
+			for (uint32_t i(0); i < colorSwapchainImages.size(); ++i)
 			{
-				SwapchainImages const& swapchainImage = swapchainImages[i];
+				SwapchainImages const& swapchainImage = colorSwapchainImages[i];
 				swapchainImage.printInfo();
+			}
+			if (enabledDepth())
+			{
+				printf("selected depth swapchain format: ");
+				switch (depthSwapchainFormat)
+				{
+				case -1: printf("No valid format!\n"); break;
+				case GL_DEPTH_COMPONENT32F: printf("Component32F\n"); break;
+				case GL_DEPTH_COMPONENT24: printf("Component24\n"); break;
+				case GL_DEPTH_COMPONENT16: printf("Component16\n"); break;
+				default: printf("Unknown!\n"); break;
+				}
+				for (uint32_t i(0); i < depthSwapchainImages.size(); ++i)
+				{
+					SwapchainImages const& swapchainImage = depthSwapchainImages[i];
+					swapchainImage.printInfo();
+				}
 			}
 		}
 	};

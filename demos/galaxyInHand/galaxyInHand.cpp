@@ -9,11 +9,6 @@ using NBodyImpl = OpenGL::NBodyOpenGLImpl;
 #include <array>
 #include <map>
 
-inline void printXrVersion(XrVersion ver)
-{
-	printf("%d.%d.%d", XR_VERSION_MAJOR(ver), XR_VERSION_MINOR(ver), XR_VERSION_PATCH(ver));
-}
-
 struct Cube
 {
 	XrPosef Pose;
@@ -57,11 +52,12 @@ namespace OpenGL
 
 	struct HelloVR_GL :OpenGL
 	{
-		uint32_t width, height;
 		GLuint colorTexture;
-		GLuint depthBuffer;
-		GLuint frameBuffer;
+		GLuint depthTexture;
+		OpenXR::FrameBuffer frameBuffer;
 
+		float nearZ;
+		float farZ;
 		XrRect2Di viewport;
 		XrFovf fov;
 		XrPosef view2appPose;
@@ -76,11 +72,11 @@ namespace OpenGL
 
 		HelloVR_GL(unsigned int _blocks, bool _experiment)
 			:
-			width(0),
-			height(0),
 			colorTexture(0),
-			depthBuffer(0),
-			frameBuffer(0),
+			depthTexture(0),
+			frameBuffer(),
+			nearZ(0.05f),
+			farZ(20.f),
 			viewport{ { 0,0 }, { 0,0 } },
 			fov{ 0 },
 			view2appPose{ 0 },
@@ -97,10 +93,9 @@ namespace OpenGL
 
 		~HelloVR_GL()
 		{
-			glDeleteFramebuffers(1, &frameBuffer);
 		}
 
-		void get_projection(Math::mat4<float>* result, const float nearZ = 0.05f, const float farZ = 100.f)
+		void get_projection(Math::mat4<float>* result)
 		{
 			const float tanLeft = tanf(fov.angleLeft);
 			const float tanRight = tanf(fov.angleRight);
@@ -173,7 +168,7 @@ namespace OpenGL
 			result->array[2][1] = yz2 + wx2;
 			result->array[2][2] = 1.0f - xx2 - yy2;
 
-			Math::vec3<float> pos_vec{ pos.x, pos.y, pos.z};
+			Math::vec3<float> pos_vec{ pos.x, pos.y, pos.z };
 			if (inv)
 			{
 				result->setCol((*result, -pos_vec), 3);
@@ -195,39 +190,9 @@ namespace OpenGL
 			result->array[3][3] = 1.f;
 		}
 
-		void bind_framebuffer()
-		{
-			GLint _width(0), _height(0);
-			glBindTexture(GL_TEXTURE_2D, colorTexture);
-			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &_width);
-			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &_height);
-
-			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-
-			if (width != _width || height != _height)
-			{
-				width = _width;
-				height = _height;
-				printf("Got texture size: [%d, %d]\n", width, height);
-
-				if (depthBuffer) glDeleteRenderbuffers(1, &depthBuffer);
-
-				glGenRenderbuffers(1, &depthBuffer);
-				glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
-				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, width, height);
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
-			}
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
-		}
-
-		void unbind_framebuffer()
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		}
-
 		virtual void init(FrameScale const& _size)override
 		{
-			glGenFramebuffers(1, &frameBuffer);
+			frameBuffer.create();
 			glPointSize(1);
 			glEnable(GL_DEPTH_TEST);
 			renderer.transUniform.dataInit();
@@ -239,7 +204,7 @@ namespace OpenGL
 		{
 			if (colorTexture)
 			{
-				bind_framebuffer();
+				frameBuffer.bind(colorTexture, depthTexture);
 
 				glViewport(viewport.offset.x, viewport.offset.y, viewport.extent.width, viewport.extent.height);
 				Math::mat4<float>proj, rot_app2view, scale, rot_hand2app;
@@ -252,8 +217,9 @@ namespace OpenGL
 				renderer.use();
 				renderer.run();
 
-				unbind_framebuffer();
+				frameBuffer.unbind();
 				colorTexture = 0;
+				depthTexture = 0;
 			}
 			glClearColor(0.0f, 0.5f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
@@ -582,13 +548,17 @@ namespace OpenXR
 		}
 
 		bool render_layer(XrTime predictedDisplayTime,
-			std::vector<XrCompositionLayerProjectionView>& projectionLayerViews,
+			std::vector<XrCompositionLayerProjectionView>& colorViews,
+			std::vector<XrCompositionLayerDepthInfoKHR>& depthViews,
 			XrCompositionLayerProjection& layer)
 		{
 			if (!views.locate(predictedDisplayTime, appSpace))
 				return false;
 
-			projectionLayerViews.resize(views.validViewCount);
+			bool enabledDepth(false);//instance.enabledDepth);
+			colorViews.resize(views.validViewCount);
+			if (enabledDepth)
+				depthViews.resize(views.validViewCount);
 
 			std::vector<Cube> cubes;
 
@@ -640,36 +610,62 @@ namespace OpenXR
 				// Each view has a separate swapchain which is acquired, rendered to, and released.
 				//const Swapchain viewSwapchain = swapchains[i];
 
-				auto& swapchain = views.swapchainImages[i];
-				uint32_t swapchainImageIndex;
+				SwapchainImages& colorSwapchain = views.colorSwapchainImages[i];
+				SwapchainImages* depthSwapchain = nullptr;
+				if (enabledDepth)
+					depthSwapchain = &views.depthSwapchainImages[i];
 
-				swapchain.aquire(&swapchainImageIndex);
-				swapchain.wait();
+				uint32_t colorSwapchainImageIndex(0);
+				uint32_t depthSwapchainImageIndex(0);
+				colorSwapchain.acquire(&colorSwapchainImageIndex);
+				if (depthSwapchain) depthSwapchain->acquire(&depthSwapchainImageIndex);
 
-				projectionLayerViews[i] = { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW };
-				projectionLayerViews[i].pose = views.views[i].pose;
-				projectionLayerViews[i].fov = views.views[i].fov;
-				projectionLayerViews[i].subImage.swapchain = swapchain;
-				projectionLayerViews[i].subImage.imageRect.offset = { 0, 0 };
-				projectionLayerViews[i].subImage.imageRect.extent = { swapchain.width, swapchain.height };
+				colorSwapchain.wait();
+				if (depthSwapchain) depthSwapchain->wait();
 
-				XrSwapchainImageOpenGLKHR const& swapchainImage = swapchain.swapchainImages[swapchainImageIndex];
+				colorViews[i] = { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW };
+				colorViews[i].pose = views.views[i].pose;
+				colorViews[i].fov = views.views[i].fov;
+				colorViews[i].subImage.swapchain = colorSwapchain;
+				// colorViews[i].subImage.imageArrayIndex = i; // 0 for ogl
+				colorViews[i].subImage.imageRect.offset = { 0, 0 };
+				colorViews[i].subImage.imageRect.extent = { colorSwapchain.width, colorSwapchain.height };
 
-				app->colorTexture = swapchainImage.image;
-				app->viewport = projectionLayerViews[i].subImage.imageRect;
-				app->fov = projectionLayerViews[i].fov;
-				app->view2appPose = projectionLayerViews[i].pose;
+				app->colorTexture = colorSwapchain.swapchainImages[colorSwapchainImageIndex].image;
+				app->viewport = colorViews[i].subImage.imageRect;
+				app->fov = colorViews[i].fov;
+				app->view2appPose = colorViews[i].pose;
+
+				if (depthSwapchain)
+				{
+					depthViews[i] = { XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR };
+					depthViews[i].subImage.swapchain = *depthSwapchain;
+					// depthViews[i].subImage.imageArrayIndex = i; // 0 for ogl
+					depthViews[i].subImage.imageRect.offset = { 0, 0 };
+					depthViews[i].subImage.imageRect.extent = { depthSwapchain->width, depthSwapchain->height };
+					depthViews[i].minDepth = 0.f;
+					depthViews[i].maxDepth = 1.f;
+					depthViews[i].nearZ = app->nearZ;
+					depthViews[i].farZ = app->farZ;
+					colorViews[i].next = &depthViews[i];
+					app->depthTexture = depthSwapchain->swapchainImages[depthSwapchainImageIndex].image;
+				}
+				else
+				{
+					app->depthTexture = 0;
+				}
 
 				app->run();
-				swapchain.release();
+				colorSwapchain.release();
+				if (depthSwapchain) depthSwapchain->release();
 			}
 
 			app->update_phy();
 
 			layer.space = appSpace;
 			layer.layerFlags = 0;
-			layer.viewCount = (uint32_t)projectionLayerViews.size();
-			layer.views = projectionLayerViews.data();
+			layer.viewCount = (uint32_t)colorViews.size();
+			layer.views = colorViews.data();
 			return true;
 		}
 
@@ -679,12 +675,13 @@ namespace OpenXR
 			frame.begin();
 
 			std::vector<XrCompositionLayerBaseHeader*> layers;
-			XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
 			std::vector<XrCompositionLayerProjectionView> projectionLayerViews;
+			std::vector<XrCompositionLayerDepthInfoKHR> projectionLayerDepths;
+			XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
 
 			if (frame.should_render())
 			{
-				if (render_layer(frame.predicted_display_time(), projectionLayerViews, layer))
+				if (render_layer(frame.predicted_display_time(), projectionLayerViews, projectionLayerDepths, layer))
 				{
 					layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
 				}
@@ -705,6 +702,8 @@ int main()
 
 	OpenXR::ApiLayer apiLayer;
 	apiLayer.printInfo();
+	OpenXR::Extension extension;
+	extension.printInfo();
 
 	OpenXR::GalaxyInHand galaxyInHand(ui.mainWindow->window.window, &renderer);
 
