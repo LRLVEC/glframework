@@ -455,4 +455,151 @@ namespace OpenGL
 			return bmp[n].data_24;
 		}
 	};
+
+	struct FrameBuffer;
+	struct FrameBufferSource
+	{
+		FrameBufferAttachment attachment;
+		FrameBufferSource(FrameBufferAttachment _attachment)
+			:
+			attachment(_attachment)
+		{
+		}
+		virtual void bind(FrameBuffer* _frameBuffer, uint32_t _layer = 0) = 0;
+		virtual void set_texture(GLuint _texture) {}
+		virtual bool is_texture()const = 0;
+	};
+	struct FrameBuffer
+	{
+		GLuint frameBuffer;
+		uint32_t width;
+		uint32_t height;
+		bool resized;
+		FrameBufferSource* color;
+		FrameBufferSource* depth;
+
+		FrameBuffer(bool _create = false)
+			:
+			frameBuffer(0),
+			width(0),
+			height(0),
+			resized(true),
+			color(nullptr),
+			depth(nullptr)
+		{
+			if (_create)create();
+		}
+
+		~FrameBuffer()
+		{
+			unbind();
+			color = nullptr;
+			depth = nullptr;
+			glDeleteFramebuffers(1, &frameBuffer);
+		}
+
+		void create()
+		{
+			glGenFramebuffers(1, &frameBuffer);
+		}
+
+		void bind(GLuint color_texture = 0, GLuint depth_texture = 0, uint32_t color_layer = 0, uint32_t depth_layer = 0)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+			// make sure that we can get texture size and then pass to render buffer to resize
+			if(color->is_texture())
+			{
+				color->set_texture(color_texture);
+				color->bind(this, color_layer);
+				depth->set_texture(depth_texture);
+				depth->bind(this, depth_layer);
+			}
+			else
+			{
+				depth->set_texture(depth_texture);
+				depth->bind(this, depth_layer);
+				color->set_texture(color_texture);
+				color->bind(this, color_layer);
+			}
+		}
+
+		void unbind()
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+	};
+	struct FrameBufferSourceTexture : FrameBufferSource
+	{
+		GLuint texture;
+		TextureType type;
+
+		FrameBufferSourceTexture(FrameBufferAttachment _attachment, TextureType _type)
+			:
+			FrameBufferSource(_attachment),
+			texture(0),
+			type(_type)
+		{
+		}
+
+		void bind(FrameBuffer* _frameBuffer, uint32_t _layer = 0)
+		{
+			if (texture)
+			{
+				GLint _width(0), _height(0);
+				glBindTexture(type, texture);
+				glGetTexLevelParameteriv(type, 0, GL_TEXTURE_WIDTH, &_width);
+				glGetTexLevelParameteriv(type, 0, GL_TEXTURE_HEIGHT, &_height);
+				if (_frameBuffer->width != _width || _frameBuffer->height != _height)
+				{
+					_frameBuffer->resized = true;
+					_frameBuffer->width = _width;
+					_frameBuffer->height = _height;
+				}
+				switch (type)
+				{
+				case Texture2D:
+					glFramebufferTexture2D(GL_FRAMEBUFFER, GLenum(attachment), Texture2D, texture, 0);
+					break;
+				case Texture3D:
+					glFramebufferTexture3D(GL_FRAMEBUFFER, GLenum(attachment), Texture3D, texture, 0, _layer);
+					break;
+				default:break;
+				}
+			}
+		}
+
+		void set_texture(GLuint _texture)
+		{
+			texture = _texture;
+		}
+
+		bool is_texture()const
+		{
+			return true;
+		}
+	};
+	struct FrameBufferSourceRenderBuffer : FrameBufferSource
+	{
+		RenderBuffer renderBuffer;
+
+		FrameBufferSourceRenderBuffer(FrameBufferAttachment _attachment, RenderBufferFormat _format)
+			:
+			FrameBufferSource(_attachment),
+			renderBuffer(_format)
+		{
+		}
+
+		void bind(FrameBuffer* _frameBuffer, uint32_t _layer = 0)
+		{
+			if (_frameBuffer->resized)
+				renderBuffer.allocData(_frameBuffer->width, _frameBuffer->height);
+			renderBuffer.attach(attachment);
+		}
+		
+		bool is_texture()const
+		{
+			return false;
+		}
+	};
 }

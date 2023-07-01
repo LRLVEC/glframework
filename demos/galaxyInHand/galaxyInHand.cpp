@@ -1,4 +1,5 @@
-#include <_OpenXR.h>
+#include <xr/_OpenXR.h>
+#include <xr/_XrGui.h>
 #include <_ImGui.h>
 #include <_NBody.h>
 #ifdef _CUDA
@@ -9,11 +10,27 @@ using NBodyImpl = OpenGL::NBodyOpenGLImpl;
 #include <array>
 #include <map>
 
-struct Cube
+namespace OpenXR
 {
-	XrPosef Pose;
-	XrVector3f Scale;
-};
+	struct ActionStates
+	{
+		ActionState<ActionType::FloatInput> grabActionState[2];
+		ActionState<ActionType::PoseInput> poseActionState[2];
+		ActionState<ActionType::VibrationOutput> vibrateActionState[2];
+		SpaceLocation handLocation[2];
+
+		ActionStates(std::vector<Path>& handSubactionPath,
+			Action* grabAction,
+			Action* poseAction,
+			Action* vibrateAction)
+			:
+			grabActionState{ {grabAction, &handSubactionPath[0]}, {grabAction, &handSubactionPath[1]} },
+			poseActionState{ {poseAction, &handSubactionPath[0]}, {poseAction, &handSubactionPath[1]} },
+			vibrateActionState{ {vibrateAction, &handSubactionPath[0]}, {vibrateAction, &handSubactionPath[1]} }
+		{
+		}
+	};
+}
 
 namespace OpenGL
 {
@@ -50,200 +67,111 @@ namespace OpenGL
 		}
 	};
 
-	struct HelloVR_GL :OpenGL
+	struct HelloVR : OpenGL, OpenXR::XrOpenGL
 	{
-		GLuint colorTexture;
-		GLuint depthTexture;
-		OpenXR::FrameBuffer frameBuffer;
-
-		float nearZ;
-		float farZ;
-		XrRect2Di viewport;
-		XrFovf fov;
-		XrPosef view2appPose;
-		XrPosef hand2appPose;
-		float handScale;
-
 		SourceManager sm;
 		NBodyData nbodyData;
 		NBodyImpl nbody;
+		Math::mat4<float> view2proj;
+		Math::mat4<float> app2view;
+		Math::mat4<float> hand2app;
+		Math::mat4<float> scale;
 		Transform::BufferData trans;
 		VRRenderer renderer;
+		OpenXR::ActionStates* actionStates;
+		float handScale;
+		XrPosef hand2appPose;
 
-		HelloVR_GL(unsigned int _blocks, bool _experiment)
+		HelloVR(unsigned int _blocks, bool _experiment)
 			:
-			colorTexture(0),
-			depthTexture(0),
-			frameBuffer(),
-			nearZ(0.05f),
-			farZ(20.f),
-			viewport{ { 0,0 }, { 0,0 } },
-			fov{ 0 },
-			view2appPose{ 0 },
-			hand2appPose{ 0 },
-			handScale(0.03f),
-
 			sm("./"),
 			nbodyData(_blocks, _experiment, &sm),
 			nbody(&nbodyData, &sm),
-			renderer(&sm, &nbodyData.particlesArray, &trans)
+			renderer(&sm, &nbodyData.particlesArray, &trans),
+			actionStates(nullptr),
+			handScale(0.03f),
+			hand2appPose{ 0 }
 		{
-
+			hand2appPose.orientation.w = 1.0f;
 		}
 
-		~HelloVR_GL()
+		// OpenGL
+		void init(FrameScale const& _size)override
 		{
-		}
-
-		void get_projection(Math::mat4<float>* result)
-		{
-			const float tanLeft = tanf(fov.angleLeft);
-			const float tanRight = tanf(fov.angleRight);
-			const float tanUp = tanf(fov.angleUp);
-			float const tanDown = tanf(fov.angleDown);
-
-			const float width = tanRight - tanLeft;
-			const float height = tanUp - tanDown;
-			const float offsetZ = nearZ;
-
-			*result = 0.f;
-			result->array[0][0] = 2.0f / width;
-			result->array[0][2] = (tanRight + tanLeft) / width;
-			result->array[1][1] = 2.0f / height;
-			result->array[1][2] = (tanUp + tanDown) / height;
-			result->array[3][2] = -1.0f;
-
-			if (farZ <= nearZ)
-			{
-				// place the far plane at infinity
-				result->array[2][2] = -1.0f;
-				result->array[2][3] = -(nearZ + offsetZ);
-			}
-			else
-			{
-				// normaarray projection
-				result->array[2][2] = -(farZ + offsetZ) / (farZ - nearZ);
-				result->array[2][3] = -(farZ * (nearZ + offsetZ)) / (farZ - nearZ);
-			}
-		}
-
-		void get_pose(Math::mat4<float>* result, XrPosef pose, bool inv)
-		{
-			XrQuaternionf& quat = pose.orientation;
-			XrVector3f& pos = pose.position;
-
-			// inverse
-			if (inv)
-			{
-				quat.x = -quat.x;
-				quat.y = -quat.y;
-				quat.z = -quat.z;
-			}
-
-			*result = 0;
-			const float x2 = quat.x + quat.x;
-			const float y2 = quat.y + quat.y;
-			const float z2 = quat.z + quat.z;
-
-			const float xx2 = quat.x * x2;
-			const float yy2 = quat.y * y2;
-			const float zz2 = quat.z * z2;
-
-			const float yz2 = quat.y * z2;
-			const float wx2 = quat.w * x2;
-			const float xy2 = quat.x * y2;
-			const float wz2 = quat.w * z2;
-			const float xz2 = quat.x * z2;
-			const float wy2 = quat.w * y2;
-
-			result->array[0][0] = 1.0f - yy2 - zz2;
-			result->array[0][1] = xy2 - wz2;
-			result->array[0][2] = xz2 + wy2;
-
-			result->array[1][0] = xy2 + wz2;
-			result->array[1][1] = 1.0f - xx2 - zz2;
-			result->array[1][2] = yz2 - wx2;
-
-			result->array[2][0] = xz2 - wy2;
-			result->array[2][1] = yz2 + wx2;
-			result->array[2][2] = 1.0f - xx2 - yy2;
-
-			Math::vec3<float> pos_vec{ pos.x, pos.y, pos.z };
-			if (inv)
-			{
-				result->setCol((*result, -pos_vec), 3);
-			}
-			else
-			{
-				result->setCol(pos_vec, 3);
-			}
-
-			result->array[3][3] = 1.0f;
-		}
-
-		void get_scale(Math::mat4<float>* result, float scale)
-		{
-			*result = 0;
-			result->array[0][0] = scale;
-			result->array[1][1] = scale;
-			result->array[2][2] = scale;
-			result->array[3][3] = 1.f;
-		}
-
-		virtual void init(FrameScale const& _size)override
-		{
-			frameBuffer.create();
 			glPointSize(1);
 			glEnable(GL_DEPTH_TEST);
 			renderer.transUniform.dataInit();
 			renderer.particlesArray->dataInit();
 			nbody.init();
 		}
-
-		virtual void run()override
+		void run()override
 		{
-			if (colorTexture)
-			{
-				frameBuffer.bind(colorTexture, depthTexture);
-
-				glViewport(viewport.offset.x, viewport.offset.y, viewport.extent.width, viewport.extent.height);
-				Math::mat4<float>proj, rot_app2view, scale, rot_hand2app;
-				get_projection(&proj);
-				get_pose(&rot_app2view, view2appPose, true);
-				get_pose(&rot_hand2app, hand2appPose, false);
-				get_scale(&scale, handScale);
-				trans.ans = (proj, (rot_app2view, (rot_hand2app, scale)));
-
-				renderer.use();
-				renderer.run();
-
-				frameBuffer.unbind();
-				colorTexture = 0;
-				depthTexture = 0;
-			}
 			glClearColor(0.0f, 0.5f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
 
-		void update_phy()
+		// xrOpenGL
+		float nearZ(uint32_t eye)override
+		{
+			return 0.05f;
+		}
+		float farZ(uint32_t eye)override
+		{
+			return 20.f;
+		}
+		void pullActions()override
+		{
+			for (uint32_t hand(0); hand < 2; ++hand)
+			{
+				// hand scale
+				if (actionStates->grabActionState[hand].is_active())
+				{
+					handScale = 0.03f * (1.f - actionStates->grabActionState[hand].current_state());
+				}
+				// hand location
+				auto& hand_loc = actionStates->handLocation[hand];
+				if (hand_loc.valid())
+				{
+					hand2appPose = hand_loc.location.pose;
+				}
+			}
+			// hand scale
+			scale.array[0][0] = handScale;
+			scale.array[1][1] = handScale;
+			scale.array[2][2] = handScale;
+			scale.array[3][3] = 1.f;
+			// hand location
+			hand2app = OpenXR::get_transform(hand2appPose, false);
+		}
+		void update()override
 		{
 			nbody.run();
+		}
+		void setViewport(XrRect2Di const& viewport)override
+		{
+			glViewport(viewport.offset.x, viewport.offset.y, viewport.extent.width, viewport.extent.height);
+		}
+		void setViewMat(Math::mat4<float>const& _app2view)override
+		{
+			app2view = _app2view;
+		}
+		void setProjMat(Math::mat4<float>const& _view2proj)override
+		{
+			view2proj = _view2proj;
+		}
+		void xrRender(uint32_t eye)override
+		{
+			trans.ans = (view2proj, (app2view, (hand2app, scale)));
+			renderer.use();
+			renderer.run();
 		}
 	};
 }
 
 namespace OpenXR
 {
-	struct GalaxyInHand
+	struct Galaxy :XrRunner
 	{
-		Instance instance;
-		System system;
-		Session session;
-		Frame frame;
-		Views views;
-		EventPoller poller;
-		ActionSet actionSet;
-
 		std::vector<Path> handSubactionPath;
 
 		Action grabAction;
@@ -251,34 +179,15 @@ namespace OpenXR
 		Action vibrateAction;
 		Action quitAction;
 
-		ActionState<ActionType::FloatInput> grabActionState[2];
-		ActionState<ActionType::PoseInput> poseActionState[2];
-		ActionState<ActionType::VibrationOutput> vibrateActionState[2];
+		ActionStates actionStates;
 		ActionState<ActionType::BoolInput> quitActionState;
 
-		Space<SpaceType::Reference> appSpace;
-		Space<SpaceType::Reference> viewSpace;
 		Space<SpaceType::Action> handSpace[2];
-
-		float handScale[2];
 		XrBool32 handActive[2];
 
-		bool sessionRunning;
-		bool exitRenderLoop;
-		bool requestRestart;
-
-		OpenGL::HelloVR_GL* app;
-
-		GalaxyInHand(GLFWwindow* _window, OpenGL::HelloVR_GL* _app)
+		Galaxy(GLFWwindow* _window)
 			:
-			instance("GalaxyInHand"),
-			system(&instance),
-			session(&system, _window),
-			frame(&session, XR_ENVIRONMENT_BLEND_MODE_OPAQUE),
-			views(&session, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO),
-			poller(&instance),
-			actionSet(&instance, "gameplay", "Gameplay", 0),
-
+			XrRunner(_window),
 			handSubactionPath{ {&instance, "/user/hand/left"}, {&instance, "/user/hand/right"} },
 
 			grabAction(&actionSet, "grab_object", "Grab Object", XR_ACTION_TYPE_FLOAT_INPUT, handSubactionPath),
@@ -286,259 +195,95 @@ namespace OpenXR
 			vibrateAction(&actionSet, "vibrate_hand", "Vibrate Hand", XR_ACTION_TYPE_VIBRATION_OUTPUT, handSubactionPath),
 			quitAction(&actionSet, "quit_session", "Quit Session", XR_ACTION_TYPE_BOOLEAN_INPUT),
 
-			grabActionState{ {&grabAction, &handSubactionPath[0]}, {&grabAction, &handSubactionPath[1]} },
-			poseActionState{ {&poseAction, &handSubactionPath[0]}, {&poseAction, &handSubactionPath[1]} },
-			vibrateActionState{ {&vibrateAction, &handSubactionPath[0]}, {&vibrateAction, &handSubactionPath[1]} },
+			actionStates(handSubactionPath, &grabAction, &poseAction, &vibrateAction),
 			quitActionState{ &quitAction, nullptr },
 
-			appSpace(&session, XR_REFERENCE_SPACE_TYPE_LOCAL),
-			viewSpace(&session, XR_REFERENCE_SPACE_TYPE_VIEW),
 			handSpace{ {&session, &poseAction, handSubactionPath[0]}, {&session, &poseAction, handSubactionPath[1]} },
 
-			handScale{ 1.0f, 1.0f },
-			handActive{ XR_FALSE, XR_FALSE },
-			sessionRunning(false),
-			exitRenderLoop(false),
-			requestRestart(false),
-
-			app(_app)
+			handActive{ XR_FALSE, XR_FALSE }
 		{
-			// print debug info
-			instance.printInfo();
-			session.printSystemInfo();
-			session.printReferenceSpace();
-			views.printViewConfig();
-			views.printViewInfo();
-			views.printSwapchainInfo();
-
 			bind_controllers();
 			actionSet.attach_session(&session);
 		}
 
 		void bind_controllers()
 		{
-			Controller<ControllerType::Simple> simple_controller(&instance);
-			// Controller<ControllerType::GoogleDaydream> google_controller(&instance);
-			Controller<ControllerType::HTCVive> vive_controller(&instance);
-			// Controller<ControllerType::HTCVivePro> vive_pro_controller(&instance);
-			Controller<ControllerType::MicrosoftMixedReality> msft_mr_controller(&instance);
-			// Controller<ControllerType::MicrosoftXbox> msft_xbox_controller(&instance);
-			// Controller<ControllerType::OculusGo> oculus_go_controller(&instance);
-			Controller<ControllerType::OculusTouch> oculus_touch_controller(&instance);
-			Controller<ControllerType::ValveIndex> valve_index_controller(&instance);
+			bind_interaction_profile(controllerSet.simple_controller, {
+				{grabAction, controllerSet.simple_controller.select_click[0]},
+				{grabAction, controllerSet.simple_controller.select_click[1]},
+				{poseAction, controllerSet.simple_controller.grip_pose[0]},
+				{poseAction, controllerSet.simple_controller.grip_pose[1]},
+				{quitAction, controllerSet.simple_controller.menu_click[0]},
+				{quitAction, controllerSet.simple_controller.menu_click[1]},
+				{vibrateAction, controllerSet.simple_controller.haptic[0]},
+				{vibrateAction, controllerSet.simple_controller.haptic[1]} });
 
-			bind_interaction_profile(simple_controller, {
-				{grabAction, simple_controller.select_click[0]},
-				{grabAction, simple_controller.select_click[1]},
-				{poseAction, simple_controller.grip_pose[0]},
-				{poseAction, simple_controller.grip_pose[1]},
-				{quitAction, simple_controller.menu_click[0]},
-				{quitAction, simple_controller.menu_click[1]},
-				{vibrateAction, simple_controller.haptic[0]},
-				{vibrateAction, simple_controller.haptic[1]} });
+			bind_interaction_profile(controllerSet.vive_controller, {
+				{grabAction, controllerSet.vive_controller.trigger_value[0]},
+				{grabAction, controllerSet.vive_controller.trigger_value[1]},
+				{poseAction, controllerSet.vive_controller.grip_pose[0]},
+				{poseAction, controllerSet.vive_controller.grip_pose[1]},
+				{quitAction, controllerSet.vive_controller.menu_click[0]},
+				{quitAction, controllerSet.vive_controller.menu_click[1]},
+				{vibrateAction, controllerSet.vive_controller.haptic[0]},
+				{vibrateAction, controllerSet.vive_controller.haptic[1]} });
 
-			bind_interaction_profile(vive_controller, {
-				{grabAction, vive_controller.trigger_value[0]},
-				{grabAction, vive_controller.trigger_value[1]},
-				{poseAction, vive_controller.grip_pose[0]},
-				{poseAction, vive_controller.grip_pose[1]},
-				{quitAction, vive_controller.menu_click[0]},
-				{quitAction, vive_controller.menu_click[1]},
-				{vibrateAction, vive_controller.haptic[0]},
-				{vibrateAction, vive_controller.haptic[1]} });
+			bind_interaction_profile(controllerSet.msft_mr_controller, {
+				{grabAction, controllerSet.msft_mr_controller.squeeze_click[0]},
+				{grabAction, controllerSet.msft_mr_controller.squeeze_click[1]},
+				{poseAction, controllerSet.msft_mr_controller.grip_pose[0]},
+				{poseAction, controllerSet.msft_mr_controller.grip_pose[1]},
+				{quitAction, controllerSet.msft_mr_controller.menu_click[0]},
+				{quitAction, controllerSet.msft_mr_controller.menu_click[1]},
+				{vibrateAction, controllerSet.msft_mr_controller.haptic[0]},
+				{vibrateAction, controllerSet.msft_mr_controller.haptic[1]} });
 
-			bind_interaction_profile(msft_mr_controller, {
-				{grabAction, msft_mr_controller.squeeze_click[0]},
-				{grabAction, msft_mr_controller.squeeze_click[1]},
-				{poseAction, msft_mr_controller.grip_pose[0]},
-				{poseAction, msft_mr_controller.grip_pose[1]},
-				{quitAction, msft_mr_controller.menu_click[0]},
-				{quitAction, msft_mr_controller.menu_click[1]},
-				{vibrateAction, msft_mr_controller.haptic[0]},
-				{vibrateAction, msft_mr_controller.haptic[1]} });
+			bind_interaction_profile(controllerSet.oculus_touch_controller, {
+				{grabAction, controllerSet.oculus_touch_controller.squeeze_value[0]},
+				{grabAction, controllerSet.oculus_touch_controller.squeeze_value[1]},
+				{poseAction, controllerSet.oculus_touch_controller.grip_pose[0]},
+				{poseAction, controllerSet.oculus_touch_controller.grip_pose[1]},
+				{quitAction, controllerSet.oculus_touch_controller.menu_click},
+				{vibrateAction, controllerSet.oculus_touch_controller.haptic[0]},
+				{vibrateAction, controllerSet.oculus_touch_controller.haptic[1]} });
 
-			bind_interaction_profile(oculus_touch_controller, {
-				{grabAction, oculus_touch_controller.squeeze_value[0]},
-				{grabAction, oculus_touch_controller.squeeze_value[1]},
-				{poseAction, oculus_touch_controller.grip_pose[0]},
-				{poseAction, oculus_touch_controller.grip_pose[1]},
-				{quitAction, oculus_touch_controller.menu_click},
-				{vibrateAction, oculus_touch_controller.haptic[0]},
-				{vibrateAction, oculus_touch_controller.haptic[1]} });
-
-			bind_interaction_profile(valve_index_controller, {
-				{grabAction, valve_index_controller.squeeze_force[0]},
-				{grabAction, valve_index_controller.squeeze_force[1]},
-				{poseAction, valve_index_controller.grip_pose[0]},
-				{poseAction, valve_index_controller.grip_pose[1]},
-				{quitAction, valve_index_controller.b_click[0]},
-				{quitAction, valve_index_controller.b_click[1]},
-				{vibrateAction, valve_index_controller.haptic[0]},
-				{vibrateAction, valve_index_controller.haptic[1]} });
+			bind_interaction_profile(controllerSet.valve_index_controller, {
+				{grabAction, controllerSet.valve_index_controller.squeeze_force[0]},
+				{grabAction, controllerSet.valve_index_controller.squeeze_force[1]},
+				{poseAction, controllerSet.valve_index_controller.grip_pose[0]},
+				{poseAction, controllerSet.valve_index_controller.grip_pose[1]},
+				{quitAction, controllerSet.valve_index_controller.b_click[0]},
+				{quitAction, controllerSet.valve_index_controller.b_click[1]},
+				{vibrateAction, controllerSet.valve_index_controller.haptic[0]},
+				{vibrateAction, controllerSet.valve_index_controller.haptic[1]} });
 		}
 
-		void handle_session_state_changed_event(XrEventDataSessionStateChanged const& stateChangedEvent)
+		void update_actions()
 		{
-			const XrSessionState oldState = session.state;
-			session.state = stateChangedEvent.state;
-			printf("XrEventDataSessionStateChanged: state %d->%d session=%lld time=%lld\n",
-				oldState, session.state, stateChangedEvent.session, stateChangedEvent.time);
-
-			if ((stateChangedEvent.session != XR_NULL_HANDLE) && (stateChangedEvent.session != session))
-			{
-				printf("XrEventDataSessionStateChanged for unknown session!\n");
-				return;
-			}
-			switch (session.state)
-			{
-			case XR_SESSION_STATE_READY:
-			{
-				XrSessionBeginInfo sessionBeginInfo{ XR_TYPE_SESSION_BEGIN_INFO };
-				sessionBeginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-				xrBeginSession(session, &sessionBeginInfo);
-				sessionRunning = true;
-				break;
-			}
-			case XR_SESSION_STATE_STOPPING:
-			{
-				sessionRunning = false;
-				xrEndSession(session);
-				break;
-			}
-			case XR_SESSION_STATE_EXITING:
-			{
-				// Do not attempt to restart because user closed this session.
-				exitRenderLoop = true;
-				requestRestart = false;
-				break;
-			}
-			case XR_SESSION_STATE_LOSS_PENDING:
-			{
-				// Poll for a new instance.
-				exitRenderLoop = true;
-				requestRestart = true;
-				break;
-			}
-			default:break;
-			}
-		}
-
-		void log_action_source_name(XrAction action, const std::string& actionName)
-		{
-			XrBoundSourcesForActionEnumerateInfo getInfo = { XR_TYPE_BOUND_SOURCES_FOR_ACTION_ENUMERATE_INFO };
-			getInfo.action = action;
-			uint32_t pathCount = 0;
-			xrEnumerateBoundSourcesForAction(session, &getInfo, 0, &pathCount, nullptr);
-			std::vector<XrPath> paths(pathCount);
-			xrEnumerateBoundSourcesForAction(session, &getInfo, uint32_t(paths.size()), &pathCount, paths.data());
-
-			std::string sourceName;
-			for (uint32_t i = 0; i < pathCount; ++i)
-			{
-				constexpr XrInputSourceLocalizedNameFlags all =
-					XR_INPUT_SOURCE_LOCALIZED_NAME_USER_PATH_BIT |
-					XR_INPUT_SOURCE_LOCALIZED_NAME_INTERACTION_PROFILE_BIT |
-					XR_INPUT_SOURCE_LOCALIZED_NAME_COMPONENT_BIT;
-
-				XrInputSourceLocalizedNameGetInfo nameInfo = { XR_TYPE_INPUT_SOURCE_LOCALIZED_NAME_GET_INFO };
-				nameInfo.sourcePath = paths[i];
-				nameInfo.whichComponents = all;
-
-				uint32_t size = 0;
-				xrGetInputSourceLocalizedName(session, &nameInfo, 0, &size, nullptr);
-				if (size < 1)
-					continue;
-				std::vector<char> grabSource(size);
-				xrGetInputSourceLocalizedName(session, &nameInfo, uint32_t(grabSource.size()), &size, grabSource.data());
-				if (!sourceName.empty())
-					sourceName += " and ";
-				sourceName += "'";
-				sourceName += std::string(grabSource.data(), size - 1);
-				sourceName += "'";
-			}
-
-			printf("%s action is bound to %s\n", actionName.c_str(), ((!sourceName.empty()) ? sourceName.c_str() : "nothing"));
-		}
-
-		void poll_events()
-		{
-			exitRenderLoop = false;
-			requestRestart = false;
-			while (const XrEventDataBaseHeader* event = poller.poll())
-			{
-				switch (event->type)
-				{
-				case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
-				{
-					const auto& instanceLossPending = *reinterpret_cast<const XrEventDataInstanceLossPending*>(event);
-					printf("XrEventDataInstanceLossPending by %lld", instanceLossPending.lossTime);
-
-					exitRenderLoop = true;
-					requestRestart = true;
-					return;
-				}
-				case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
-				{
-					auto sessionStateChangedEvent = *reinterpret_cast<const XrEventDataSessionStateChanged*>(event);
-					handle_session_state_changed_event(sessionStateChangedEvent);
-					break;
-				}
-				case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
-				{
-					log_action_source_name(grabAction, "Grab");
-					log_action_source_name(quitAction, "Quit");
-					log_action_source_name(poseAction, "Pose");
-					log_action_source_name(vibrateAction, "Vibrate");
-					break;
-				}
-				case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
-				default:
-				{
-					printf("Ignoring event type %d", event->type);
-					break;
-				}
-				}
-			}
-
-		}
-
-		void poll_actions()
-		{
-			handActive[0] = XR_FALSE;
-			handActive[1] = XR_FALSE;
-			// Sync actions
 			actionSet.sync();
 
 			// Get pose and grab action state and start haptic vibrate when hand is 90% squeezed.
 			for (auto hand : { 0, 1 })
 			{
-				auto& grab_state = grabActionState[hand];
+				auto& grab_state = actionStates.grabActionState[hand];
+				auto& vibrate_state = actionStates.vibrateActionState[hand];
+				auto& pose_state = actionStates.poseActionState[hand];
 				grab_state.update_state();
-
-				auto& vibrate_state = vibrateActionState[hand];
-
+				pose_state.update_state();
+				handActive[hand] = pose_state.is_active();
 				if (grab_state.is_active())
 				{
 					// Scale the rendered hand by 1.0f (open) to 0.5f (fully squeezed).
-					handScale[hand] = 1.0f - 0.5f * grab_state.current_state();
-					app->handScale = 0.03f * (1.f - grab_state.current_state());
 					if (grab_state.current_state() > 0.9f)
-					{
 						vibrate_state.apply_haptic(0.5f, XR_MIN_HAPTIC_DURATION, XR_FREQUENCY_UNSPECIFIED);
-					}
 					else
 					{
 						//vibrate_state.stop_haptic();
 					}
 				}
-
-				auto& pose_state = poseActionState[hand];
-				pose_state.update_state();
-				handActive[hand] = pose_state.is_active();
 			}
 
 			quitActionState.update_state();
-
 			if (quitActionState.is_active() &&
 				quitActionState.changed_since_last_sync() &&
 				quitActionState.current_state())
@@ -547,156 +292,20 @@ namespace OpenXR
 			}
 		}
 
-		bool render_layer(XrTime predictedDisplayTime,
-			std::vector<XrCompositionLayerProjectionView>& colorViews,
-			std::vector<XrCompositionLayerDepthInfoKHR>& depthViews,
-			XrCompositionLayerProjection& layer)
+		void before_render(XrTime predictedDisplayTime)
 		{
-			if (!views.locate(predictedDisplayTime, appSpace))
-				return false;
-
-			bool enabledDepth(false);//instance.enabledDepth);
-			colorViews.resize(views.validViewCount);
-			if (enabledDepth)
-				depthViews.resize(views.validViewCount);
-
-			std::vector<Cube> cubes;
-
-			XrSpaceLocation viewSpaceLocation;
-			XrResult res = viewSpace.locate_space(appSpace, predictedDisplayTime, &viewSpaceLocation);
-
-			if (XR_UNQUALIFIED_SUCCESS(res))
-			{
-				if ((viewSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 &&
-					(viewSpaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0)
-				{
-					cubes.push_back(Cube{ viewSpaceLocation.pose, {0.25f, 0.25f, 0.25f} });
-				}
-			}
-			else
-			{
-				printf("Unable to locate a visualized reference space in app space: %d\n", res);
-			}
-
-			// Render a 10cm cube scaled by grabAction for each hand. Note renderHand will only be
-			// true when the application has focus.
 			for (auto hand : { 0, 1 })
-			{
-				XrSpaceLocation handLocation;
-				res = handSpace[hand].locate_space(appSpace, predictedDisplayTime, &handLocation);
-				if (XR_UNQUALIFIED_SUCCESS(res))
-				{
-					if ((handLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 &&
-						(handLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0)
-					{
-						float scale = 0.1f * handScale[hand];
-						app->hand2appPose = handLocation.pose;
-						cubes.push_back(Cube{ handLocation.pose, {scale, scale, scale} });
-					}
-				}
-				else
-				{
-					if (handActive[hand] == XR_TRUE)
-					{
-						const char* handName[] = { "left", "right" };
-						printf("Unable to locate %s hand action space in app space: %d\n", handName[hand], res);
-					}
-				}
-			}
-
-			// Render view to the appropriate part of the swapchain image.
-			for (uint32_t i = 0; i < views.validViewCount; i++)
-			{
-				// Each view has a separate swapchain which is acquired, rendered to, and released.
-				//const Swapchain viewSwapchain = swapchains[i];
-
-				SwapchainImages& colorSwapchain = views.colorSwapchainImages[i];
-				SwapchainImages* depthSwapchain = nullptr;
-				if (enabledDepth)
-					depthSwapchain = &views.depthSwapchainImages[i];
-
-				uint32_t colorSwapchainImageIndex(0);
-				uint32_t depthSwapchainImageIndex(0);
-				colorSwapchain.acquire(&colorSwapchainImageIndex);
-				if (depthSwapchain) depthSwapchain->acquire(&depthSwapchainImageIndex);
-
-				colorSwapchain.wait();
-				if (depthSwapchain) depthSwapchain->wait();
-
-				colorViews[i] = { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW };
-				colorViews[i].pose = views.views[i].pose;
-				colorViews[i].fov = views.views[i].fov;
-				colorViews[i].subImage.swapchain = colorSwapchain;
-				// colorViews[i].subImage.imageArrayIndex = i; // 0 for ogl
-				colorViews[i].subImage.imageRect.offset = { 0, 0 };
-				colorViews[i].subImage.imageRect.extent = { colorSwapchain.width, colorSwapchain.height };
-
-				app->colorTexture = colorSwapchain.swapchainImages[colorSwapchainImageIndex].image;
-				app->viewport = colorViews[i].subImage.imageRect;
-				app->fov = colorViews[i].fov;
-				app->view2appPose = colorViews[i].pose;
-
-				if (depthSwapchain)
-				{
-					depthViews[i] = { XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR };
-					depthViews[i].subImage.swapchain = *depthSwapchain;
-					// depthViews[i].subImage.imageArrayIndex = i; // 0 for ogl
-					depthViews[i].subImage.imageRect.offset = { 0, 0 };
-					depthViews[i].subImage.imageRect.extent = { depthSwapchain->width, depthSwapchain->height };
-					depthViews[i].minDepth = 0.f;
-					depthViews[i].maxDepth = 1.f;
-					depthViews[i].nearZ = app->nearZ;
-					depthViews[i].farZ = app->farZ;
-					colorViews[i].next = &depthViews[i];
-					app->depthTexture = depthSwapchain->swapchainImages[depthSwapchainImageIndex].image;
-				}
-				else
-				{
-					app->depthTexture = 0;
-				}
-
-				app->run();
-				colorSwapchain.release();
-				if (depthSwapchain) depthSwapchain->release();
-			}
-
-			app->update_phy();
-
-			layer.space = appSpace;
-			layer.layerFlags = 0;
-			layer.viewCount = (uint32_t)colorViews.size();
-			layer.views = colorViews.data();
-			return true;
-		}
-
-		void render()
-		{
-			frame.wait();
-			frame.begin();
-
-			std::vector<XrCompositionLayerBaseHeader*> layers;
-			std::vector<XrCompositionLayerProjectionView> projectionLayerViews;
-			std::vector<XrCompositionLayerDepthInfoKHR> projectionLayerDepths;
-			XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
-
-			if (frame.should_render())
-			{
-				if (render_layer(frame.predicted_display_time(), projectionLayerViews, projectionLayerDepths, layer))
-				{
-					layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
-				}
-			}
-
-			frame.end(layers);
-		}
+				handSpace[hand].locate_space(appSpace, predictedDisplayTime, &actionStates.handLocation[hand]);
+		};
 	};
 }
 
 int main()
 {
 	GUI::UserInterface ui(Window::Window::Data{ "GalaxyInHand", { {800, 800}, /*resizable=*/true, /*fullscreen=*/false } }, false);
-	OpenGL::HelloVR_GL renderer(30 * 1, false);
-	ui.bindOpenGLMain(&renderer);
+
+	OpenGL::HelloVR helloVR(30 * 1, false);
+	ui.bindOpenGLMain(&helloVR);
 	ui.wm.swapInterval(0);
 	ui.update();
 
@@ -705,14 +314,13 @@ int main()
 	OpenXR::Extension extension;
 	extension.printInfo();
 
-	OpenXR::GalaxyInHand galaxyInHand(ui.mainWindow->window.window, &renderer);
+	OpenXR::Galaxy galaxy(ui.mainWindow->window.window);
+	helloVR.actionStates = &galaxy.actionStates;
+	galaxy.bindXrOpenGL(&helloVR);
 
 	for (;;)
 	{
-		galaxyInHand.poll_events();
-		if (galaxyInHand.exitRenderLoop)
-			break;
-		galaxyInHand.poll_actions();
-		galaxyInHand.render();
+		if (!ui.update())break;
+		if (!galaxy.update())break;
 	}
 }

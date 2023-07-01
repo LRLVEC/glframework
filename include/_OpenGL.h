@@ -403,16 +403,95 @@ namespace OpenGL
 		virtual void initBufferData() = 0;
 		virtual void run() = 0;
 	};
-	/*struct Texture
-	{
-		TextureType TextureCubeMap;
-		GLuint buffer;
-		unsigned int layers;
-		void storage()
-		{
 
+	enum class RenderBufferFormat
+	{
+		RGBA4 = GL_RGBA4,
+		RGB5A1 = GL_RGB5_A1,
+		RGB565 = GL_RGB565,
+		RGB10A2 = GL_RGB10_A2,
+		RGB10A2UI = GL_RGB10_A2UI,
+		RG11B10F = GL_R11F_G11F_B10F,
+		SRGB8A8 = GL_SRGB8_ALPHA8,
+		Depth16 = GL_DEPTH_COMPONENT16,
+		Depth24 = GL_DEPTH_COMPONENT24,
+		Depth32F = GL_DEPTH_COMPONENT32F,
+		Depth24Stencil8 = GL_DEPTH24_STENCIL8,
+		Depth32Stencil8 = GL_DEPTH32F_STENCIL8,
+		StencilIndex8 = GL_STENCIL_INDEX8
+	};
+	enum class FrameBufferAttachment
+	{
+		Color0 = GL_COLOR_ATTACHMENT0,
+		Color1 = GL_COLOR_ATTACHMENT1,
+		Color2 = GL_COLOR_ATTACHMENT2,
+		Color3 = GL_COLOR_ATTACHMENT3,
+		Color4 = GL_COLOR_ATTACHMENT4,
+		Color5 = GL_COLOR_ATTACHMENT5,
+		Color6 = GL_COLOR_ATTACHMENT6,
+		Color7 = GL_COLOR_ATTACHMENT7,
+		Color8 = GL_COLOR_ATTACHMENT9,
+		Color9 = GL_COLOR_ATTACHMENT9,
+		Color10 = GL_COLOR_ATTACHMENT10,
+		Color11 = GL_COLOR_ATTACHMENT11,
+		Color12 = GL_COLOR_ATTACHMENT12,
+		Color13 = GL_COLOR_ATTACHMENT13,
+		Color14 = GL_COLOR_ATTACHMENT14,
+		Color15 = GL_COLOR_ATTACHMENT15,
+		Depth = GL_DEPTH_ATTACHMENT,
+	};
+	struct RenderBuffer
+	{
+		GLuint renderBuffer;
+		RenderBufferFormat format;
+		uint32_t width;
+		uint32_t height;
+
+		RenderBuffer()
+			:
+			renderBuffer(0),
+			format(RenderBufferFormat::RGB10A2)
+		{
 		}
-	};*/
+		RenderBuffer(RenderBufferFormat _format)
+			:
+			renderBuffer(0),
+			format(_format)
+		{
+			glGenRenderbuffers(1, &renderBuffer);
+		}
+		~RenderBuffer()
+		{
+			if (renderBuffer)
+			{
+				unbind();
+				glDeleteRenderbuffers(1, &renderBuffer);
+				renderBuffer = 0;
+			}
+		}
+		void bind()
+		{
+			glBindRenderbuffer(GL_RENDERBUFFER, renderBuffer);
+		}
+		void unbind()
+		{
+			glBindRenderbuffer(GL_RENDERBUFFER, 0);
+		}
+		void allocData(uint32_t _width, uint32_t _height)
+		{
+			bind();
+			if (width != _width || height != _height)
+			{
+				width = _width;
+				height = _height;
+				glRenderbufferStorage(GL_RENDERBUFFER, GLenum(format), width, height);
+			}
+		}
+		void attach(FrameBufferAttachment attachment)
+		{
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GLenum(attachment), GL_RENDERBUFFER, renderBuffer);
+		}
+	};
 
 	struct Transform
 	{
@@ -496,7 +575,7 @@ namespace OpenGL
 			void refreshButton(int, bool);
 			Math::vec2<double> operate();
 		};
-		struct BufferData:Buffer::Data
+		struct BufferData :Buffer::Data
 		{
 			Math::mat4<float>ans;
 			BufferData();
@@ -1373,11 +1452,11 @@ namespace OpenGL
 		dxy /= scale;
 		if (coeff != 0.0)
 		{
-			Math::vec2<double> m{mouse.current.x, mouse.current.y};
+			Math::vec2<double> m{ mouse.current.x, mouse.current.y };
 			m[0] = (m[0] - double(size.w) / 2) / size.w;
 			m[1] = (double(size.h) / 2 - m[1]) / size.w;
 			double scale_new = scale * exp(coeff);
-			center += ((scale_new - scale)/ (scale * scale_new)) * m;
+			center += ((scale_new - scale) / (scale * scale_new)) * m;
 			scale = scale_new;
 			operated = true;
 		}

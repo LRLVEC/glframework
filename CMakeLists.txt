@@ -78,6 +78,7 @@ if (GLFRAMEWORK_BUILD_OPENXR)
 		list(APPEND GLFRAMEWORK_LIBRARIES OpenXR::openxr_loader)
 		list(APPEND GLFRAMEWORK_SOURCES
 			"src/_OpenXR.cpp"
+			"src/_XrOS.cpp"
 		)
 	endif()
 endif()

@@ -26,18 +26,6 @@ namespace OpenXR
 #elif defined(XR_USE_PLATFORM_XLIB)
 #endif
 
-	struct OpenXR
-	{
-		virtual void run() {}
-
-		// virtual void pollEvent(XrEventDataBaseHeader const* event) {}//should be placed in session manager
-		// session manager should cooperate with imgui window manager
-		// maybe we should have sth like volume for each session? just like multi-window system, we have
-		// multi volume system.
-
-		virtual void sessionStateChange() {}
-	};
-
 	struct ApiLayer
 	{
 		std::vector<XrApiLayerProperties> layers;
@@ -489,89 +477,6 @@ namespace OpenXR
 			frameEndInfo.layerCount = layers.size();
 			frameEndInfo.layers = layers.data();
 			xrEndFrame(*session, &frameEndInfo);
-		}
-	};
-
-	struct FrameBuffer
-	{
-		uint32_t width;
-		uint32_t height;
-		GLuint colorTexture;
-		GLuint depthTextureOrBuffer;
-		GLuint frameBuffer;
-		bool enabledDepthTexture;
-
-		FrameBuffer(bool _create = false)
-			:
-			width(0),
-			height(0),
-			colorTexture(0),
-			depthTextureOrBuffer(0),
-			frameBuffer(0),
-			enabledDepthTexture(false)
-		{
-			if (_create)create();
-		}
-
-		~FrameBuffer()
-		{
-			if (!enabledDepthTexture)
-			{
-				glDeleteRenderbuffers(1, &depthTextureOrBuffer);
-			}
-			glDeleteFramebuffers(1, &frameBuffer);
-		}
-
-		void create()
-		{
-			glGenFramebuffers(1, &frameBuffer);
-		}
-
-		void bind(GLuint _colorTexture, GLuint _depthTexture = 0)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-			// get width & height from color texture
-			colorTexture = _colorTexture;
-			GLint _width(0), _height(0);
-			glBindTexture(GL_TEXTURE_2D, colorTexture);
-			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &_width);
-			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &_height);
-
-			if (!_depthTexture)
-			{
-				enabledDepthTexture = false;
-				// create depth render buffer when new resolution depth is required
-				if (width != _width || height != _height)
-				{
-					if (depthTextureOrBuffer)
-						glDeleteRenderbuffers(1, &depthTextureOrBuffer);
-
-					glGenRenderbuffers(1, &depthTextureOrBuffer);
-					glBindRenderbuffer(GL_RENDERBUFFER, depthTextureOrBuffer);
-					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, _width, _height);
-					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthTextureOrBuffer);
-				}
-			}
-			else
-			{
-				// use given depth texture
-				enabledDepthTexture = true;
-				depthTextureOrBuffer = _depthTexture;
-				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTextureOrBuffer, 0);
-			}
-			width = _width;
-			height = _height;
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
-		}
-
-		void unbind()
-		{
-			colorTexture = 0;
-			if (enabledDepthTexture)
-			{
-				depthTextureOrBuffer = 0;
-			}
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
 	};
 
@@ -1165,6 +1070,15 @@ namespace OpenXR
 				}
 			}
 		}
+		virtual void update_state() = 0;
+
+		virtual bool is_active()const = 0;
+
+		virtual bool changed_since_last_sync()const = 0;
+
+		virtual XrTime last_change_time()const = 0;
+
+		virtual void printInfo()const {}
 	};
 
 	template<ActionType _actionType>struct ActionState : ActionStateBase {};
@@ -1184,7 +1098,7 @@ namespace OpenXR
 		{
 		}
 
-		void update_state()
+		void update_state()override
 		{
 			XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO, nullptr, *action, XR_NULL_PATH };
 			if (subactionPath)
@@ -1198,22 +1112,22 @@ namespace OpenXR
 			return state.currentState;
 		}
 
-		bool is_active()const
+		bool is_active()const override
 		{
 			return state.isActive;
 		}
 
-		bool changed_since_last_sync()const
+		bool changed_since_last_sync()const override
 		{
 			return state.changedSinceLastSync;
 		}
 
-		XrTime last_change_time()const
+		XrTime last_change_time()const override
 		{
 			return state.lastChangeTime;
 		}
 
-		void printInfo()const
+		void printInfo()const override
 		{
 			printf("ActionState %s:\n", action->name.c_str());
 			printf("\tstate: %s\n", state.currentState ? "True" : "False");
@@ -1237,7 +1151,7 @@ namespace OpenXR
 		{
 		}
 
-		void update_state()
+		void update_state() override
 		{
 			XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO, nullptr, *action, XR_NULL_PATH };
 			if (subactionPath)
@@ -1251,22 +1165,22 @@ namespace OpenXR
 			return state.currentState;
 		}
 
-		bool is_active()const
+		bool is_active()const override
 		{
 			return state.isActive;
 		}
 
-		bool changed_since_last_sync()
+		bool changed_since_last_sync()const override
 		{
 			return state.changedSinceLastSync;
 		}
 
-		XrTime last_change_time()const
+		XrTime last_change_time()const override
 		{
 			return state.lastChangeTime;
 		}
 
-		void printInfo()const
+		void printInfo()const override
 		{
 			printf("ActionState %s:\n", action->name.c_str());
 			printf("\tstate: %f\n", state.currentState);
@@ -1290,7 +1204,7 @@ namespace OpenXR
 		{
 		}
 
-		void update_state()
+		void update_state() override
 		{
 			XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO, nullptr, *action, XR_NULL_PATH };
 			if (subactionPath)
@@ -1304,22 +1218,22 @@ namespace OpenXR
 			return state.currentState;
 		}
 
-		bool is_active()const
+		bool is_active()const override
 		{
 			return state.isActive;
 		}
 
-		bool changed_since_last_sync()
+		bool changed_since_last_sync()const override
 		{
 			return state.changedSinceLastSync;
 		}
 
-		XrTime last_change_time()const
+		XrTime last_change_time()const override
 		{
 			return state.lastChangeTime;
 		}
 
-		void printInfo()const
+		void printInfo()const override
 		{
 			printf("ActionState %s:\n", action->name.c_str());
 			printf("\tstate: [%f, %f]\n", state.currentState.x, state.currentState.y);
@@ -1343,7 +1257,7 @@ namespace OpenXR
 		{
 		}
 
-		void update_state()
+		void update_state() override
 		{
 			XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO, nullptr, *action, XR_NULL_PATH };
 			if (subactionPath)
@@ -1352,12 +1266,22 @@ namespace OpenXR
 			xrGetActionStatePose(*action, &getInfo, &state);
 		}
 
-		bool is_active()const
+		bool is_active()const override
 		{
 			return state.isActive;
 		}
+
+		bool changed_since_last_sync()const override
+		{
+			return true;
+		}
+
+		XrTime last_change_time()const override
+		{
+			return 0;
+		}
 		// pose is obtained via xrLocateSpace in space
-		void printInfo()const
+		void printInfo()const override
 		{
 			printf("ActionState %s:\n", action->name.c_str());
 			printf("\tis active: %s\n", state.isActive ? "True" : "False");
@@ -1391,6 +1315,23 @@ namespace OpenXR
 			xrApplyHapticFeedback(*action, &hapticActionInfo, (XrHapticBaseHeader*)&vibration);
 		}
 
+		void update_state() override {}
+		// always true since this is not input action
+		bool is_active()const override
+		{
+			return true;
+		}
+
+		bool changed_since_last_sync()const override
+		{
+			return true;
+		}
+
+		XrTime last_change_time()const override
+		{
+			return 0;
+		}
+
 		void stop_haptic()
 		{
 			XrHapticActionInfo hapticActionInfo{ XR_TYPE_HAPTIC_ACTION_INFO };
@@ -1401,12 +1342,34 @@ namespace OpenXR
 			xrStopHapticFeedback(*action, &hapticActionInfo);
 		}
 
-		void printInfo()const
+		void printInfo()const override
 		{
 			printf("ActionState %s:\n", action->name.c_str());
 			printf("\tduration: %lld\n", vibration.duration);
 			printf("\tfrequency: %f\n", vibration.frequency);
 			printf("\tamplitude: %f\n", vibration.amplitude);
+		}
+	};
+
+	struct SpaceLocation
+	{
+		XrResult res;
+		XrSpaceLocation location;
+
+		SpaceLocation()
+			:
+			res(XR_SUCCESS),
+			location{ XR_TYPE_SPACE_LOCATION }
+		{
+		}
+
+		bool valid()const
+		{
+			if (XR_UNQUALIFIED_SUCCESS(res) &&
+				(location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 &&
+				(location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0)
+				return true;
+			return false;
 		}
 	};
 
@@ -1454,17 +1417,10 @@ namespace OpenXR
 			return session->session;
 		}
 
-		XrResult locate_space(SpaceBase const& ref_space, XrTime _time, XrSpaceLocation* space_location)const
+		void locate_space(SpaceBase const& ref_space, XrTime _time, SpaceLocation* space_location)const
 		{
-			if (space_location)
-			{
-				*space_location = { XR_TYPE_SPACE_LOCATION };
-				return xrLocateSpace(space, ref_space, _time, space_location);
-			}
-			else
-			{
-				return XR_ERROR_VALIDATION_FAILURE;
-			}
+			space_location->location = { XR_TYPE_SPACE_LOCATION };
+			space_location->res = xrLocateSpace(space, ref_space, _time, &space_location->location);
 		}
 	};
 
@@ -1518,6 +1474,8 @@ namespace OpenXR
 			}
 		}
 	};
+
+
 
 	enum class ControllerType
 	{
@@ -2011,8 +1969,7 @@ namespace OpenXR
 	};
 
 	template<ControllerType controllerType>
-	void bind_interaction_profile(Controller<controllerType> const& controller,
-		std::vector<XrActionSuggestedBinding> const& bindings)
+	void bind_interaction_profile(Controller<controllerType> const& controller, std::vector<XrActionSuggestedBinding> const& bindings)
 	{
 		XrInteractionProfileSuggestedBinding suggestedBindings{ XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
 		suggestedBindings.interactionProfile = controller.profile.path;
@@ -2021,5 +1978,349 @@ namespace OpenXR
 		xrSuggestInteractionProfileBindings(controller.profile.instance->instance, &suggestedBindings);
 	}
 
+	struct ControllerSet
+	{
+		Controller<ControllerType::Simple>					simple_controller;
+		Controller<ControllerType::GoogleDaydream>			google_controller;
+		Controller<ControllerType::HTCVive>					vive_controller;
+		Controller<ControllerType::HTCVivePro>				vive_pro_controller;
+		Controller<ControllerType::MicrosoftMixedReality>	msft_mr_controller;
+		Controller<ControllerType::MicrosoftXbox>			msft_xbox_controller;
+		Controller<ControllerType::OculusGo>				oculus_go_controller;
+		Controller<ControllerType::OculusTouch>				oculus_touch_controller;
+		Controller<ControllerType::ValveIndex>				valve_index_controller;
 
+		ControllerSet(Instance* _instance)
+			:
+			simple_controller(_instance),
+			google_controller(_instance),
+			vive_controller(_instance),
+			vive_pro_controller(_instance),
+			msft_mr_controller(_instance),
+			msft_xbox_controller(_instance),
+			oculus_go_controller(_instance),
+			oculus_touch_controller(_instance),
+			valve_index_controller(_instance)
+		{
+		}
+	};
+
+	// if farZ is negative, set far plane to infinity
+	Math::mat4<float> get_projection(XrFovf const& fov, float nearZ, float farZ = -1.f);
+
+	// if not inv, get the transformation matrix from reference space to target space for the XrPosef
+	Math::mat4<float> get_transform(XrPosef pose, bool inv);
+
+	// interface for a OpenXR app that would attach to an OpenGL app
+	struct XrOpenGL
+	{
+		virtual float nearZ(uint32_t eye) = 0;
+		virtual float farZ(uint32_t eye) = 0;
+
+		virtual void xrinit() {}
+		virtual void pullActions() {} // before rendering
+		virtual void update() {} // after rendering both eyes
+
+		virtual void setViewport(XrRect2Di const& viewport) = 0; // set before rendering one eye
+		virtual void setViewMat(Math::mat4<float>const& app2view) = 0; // set before rendering one eye
+		virtual void setProjMat(Math::mat4<float>const& view2proj) = 0; // set before rendering one eye
+
+		virtual void xrRender(uint32_t eye) {} // render one eye
+	};
+
+	// single OpenXR app attached to an OpenGL app, independent of XrOS,
+	// has its own framebuffer, inherit from this to finish an app
+	// you need to write your own action codes
+	struct XrRunner
+	{
+		Instance instance;
+		System system;
+		Session session;
+		Frame frame;
+		Views views;
+		EventPoller poller;
+		ActionSet actionSet;
+		ControllerSet controllerSet;
+
+		Space<SpaceType::Reference> appSpace;
+		Space<SpaceType::Reference> viewSpace;
+
+		bool sessionRunning;
+		bool exitRenderLoop;
+		bool requestRestart;
+
+		OpenGL::FrameBufferSource* color;
+		OpenGL::FrameBufferSource* depth;
+		OpenGL::FrameBuffer framebuffer;
+
+		XrOpenGL* xrOpenGL;
+
+		XrRunner(GLFWwindow* _window)
+			:
+			instance("XrOS"),
+			system(&instance),
+			session(&system, _window),
+			frame(&session, XR_ENVIRONMENT_BLEND_MODE_OPAQUE),
+			views(&session, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO),
+			poller(&instance),
+			actionSet(&instance, "action_set_default", "Action Set Default", 0),
+			controllerSet(&instance),
+			appSpace(&session, XR_REFERENCE_SPACE_TYPE_LOCAL),
+			viewSpace(&session, XR_REFERENCE_SPACE_TYPE_VIEW),
+			sessionRunning(false),
+			exitRenderLoop(false),
+			requestRestart(false),
+			color(nullptr),
+			depth(nullptr),
+			xrOpenGL(nullptr)
+		{
+			instance.printInfo();
+			session.printSystemInfo();
+			session.printReferenceSpace();
+			views.printViewConfig();
+			views.printViewInfo();
+			views.printSwapchainInfo();
+
+			framebuffer.create();
+		}
+
+		~XrRunner()
+		{
+			delete color;
+			delete depth;
+		}
+
+		virtual void bind_controllers() = 0;
+		virtual void update_actions() = 0;
+		virtual void before_render(XrTime predictedDisplayTime) {}
+
+		void handle_session_state_event(XrEventDataSessionStateChanged const& stateChangedEvent)
+		{
+			const XrSessionState oldState = session.state;
+			session.state = stateChangedEvent.state;
+			printf("XrEventDataSessionStateChanged: state %d->%d session=%lld time=%lld\n",
+				oldState, session.state, stateChangedEvent.session, stateChangedEvent.time);
+
+			if ((stateChangedEvent.session != XR_NULL_HANDLE) && (stateChangedEvent.session != session))
+			{
+				printf("XrEventDataSessionStateChanged for unknown session!\n");
+				return;
+			}
+			switch (session.state)
+			{
+			case XR_SESSION_STATE_READY:
+			{
+				XrSessionBeginInfo sessionBeginInfo{ XR_TYPE_SESSION_BEGIN_INFO };
+				sessionBeginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+				xrBeginSession(session, &sessionBeginInfo);
+				sessionRunning = true;
+				break;
+			}
+			case XR_SESSION_STATE_STOPPING:
+			{
+				sessionRunning = false;
+				xrEndSession(session);
+				break;
+			}
+			case XR_SESSION_STATE_EXITING:
+			{
+				// Do not attempt to restart because user closed this session.
+				exitRenderLoop = true;
+				requestRestart = false;
+				break;
+			}
+			case XR_SESSION_STATE_LOSS_PENDING:
+			{
+				// Poll for a new instance.
+				exitRenderLoop = true;
+				requestRestart = true;
+				break;
+			}
+			default:break;
+			}
+		}
+
+		void poll_events()
+		{
+			exitRenderLoop = false;
+			requestRestart = false;
+			while (const XrEventDataBaseHeader* event = poller.poll())
+			{
+				switch (event->type)
+				{
+				case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
+				{
+					const auto& instanceLossPending = *reinterpret_cast<const XrEventDataInstanceLossPending*>(event);
+					printf("XrEventDataInstanceLossPending by %lld", instanceLossPending.lossTime);
+
+					exitRenderLoop = true;
+					requestRestart = true;
+					return;
+				}
+				case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
+				{
+					auto sessionStateChangedEvent = *reinterpret_cast<const XrEventDataSessionStateChanged*>(event);
+					handle_session_state_event(sessionStateChangedEvent);
+					break;
+				}
+				case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+				{
+					// 	log_action_source_name(grabAction, "Grab");
+					// 	log_action_source_name(quitAction, "Quit");
+					// 	log_action_source_name(poseAction, "Pose");
+					// 	log_action_source_name(vibrateAction, "Vibrate");
+					break;
+				}
+				case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
+				default:
+				{
+					printf("Ignoring event type %d", event->type);
+					break;
+				}
+				}
+			}
+		}
+
+		void bindXrOpenGL(XrOpenGL* _xrOpenGL)
+		{
+			xrOpenGL = _xrOpenGL;
+			xrOpenGL->xrinit();
+		}
+
+		bool render_layer(XrTime predictedDisplayTime, std::vector<XrCompositionLayerProjectionView>& colorViews, std::vector<XrCompositionLayerDepthInfoKHR>& depthViews, XrCompositionLayerProjection& layer)
+		{
+			if (!views.locate(predictedDisplayTime, appSpace))
+				return false;
+
+			before_render(predictedDisplayTime);
+			xrOpenGL->pullActions();
+
+			bool enabledDepth(instance.enabledDepth);
+			colorViews.resize(views.validViewCount);
+			if (enabledDepth)
+				depthViews.resize(views.validViewCount);
+
+			// Render view to the appropriate part of the swapchain image.
+			for (uint32_t i = 0; i < views.validViewCount; i++)
+			{
+				// Each view has a separate swapchain which is acquired, rendered to, and released.
+
+				SwapchainImages& colorSwapchain = views.colorSwapchainImages[i];
+				SwapchainImages* depthSwapchain = nullptr;
+				if (enabledDepth)
+					depthSwapchain = &views.depthSwapchainImages[i];
+
+				uint32_t colorSwapchainImageIndex(0);
+				uint32_t depthSwapchainImageIndex(0);
+				colorSwapchain.acquire(&colorSwapchainImageIndex);
+				if (depthSwapchain) depthSwapchain->acquire(&depthSwapchainImageIndex);
+
+				colorSwapchain.wait();
+				if (depthSwapchain) depthSwapchain->wait();
+
+				colorViews[i] = { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW };
+				colorViews[i].pose = views.views[i].pose;
+				colorViews[i].fov = views.views[i].fov;
+				colorViews[i].subImage.swapchain = colorSwapchain;
+				// colorViews[i].subImage.imageArrayIndex = i; // 0 for ogl
+				colorViews[i].subImage.imageRect.offset = { 0, 0 };
+				colorViews[i].subImage.imageRect.extent = { colorSwapchain.width, colorSwapchain.height };
+
+				float nearZ = xrOpenGL->nearZ(i);
+				float farZ = xrOpenGL->farZ(i);
+
+				xrOpenGL->setProjMat(get_projection(views.views[i].fov, nearZ, farZ));
+				xrOpenGL->setViewMat(get_transform(views.views[i].pose, true));
+				xrOpenGL->setViewport(colorViews[i].subImage.imageRect);
+
+				// todo: prepare frame buffer
+				using namespace OpenGL;
+				GLuint color_texture(0), depth_texture(0);
+				if (!color)
+				{
+					color = new FrameBufferSourceTexture(FrameBufferAttachment::Color0, Texture2D);
+					framebuffer.color = color;
+				}
+				color_texture = colorSwapchain.swapchainImages[colorSwapchainImageIndex].image;
+
+				if (depthSwapchain)
+				{
+					depthViews[i] = { XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR };
+					depthViews[i].subImage.swapchain = *depthSwapchain;
+					// depthViews[i].subImage.imageArrayIndex = i; // 0 for ogl
+					depthViews[i].subImage.imageRect.offset = { 0, 0 };
+					depthViews[i].subImage.imageRect.extent = { depthSwapchain->width, depthSwapchain->height };
+					depthViews[i].minDepth = 0.f;
+					depthViews[i].maxDepth = 1.f;
+					depthViews[i].nearZ = nearZ;
+					depthViews[i].farZ = farZ;
+					colorViews[i].next = &depthViews[i];
+					depth_texture = depthSwapchain->swapchainImages[depthSwapchainImageIndex].image;
+					if (depth)
+					{
+						if (!depth->is_texture())
+						{
+							delete depth;
+							depth = nullptr;
+						}
+					}
+					if (!depth)
+					{
+						depth = new FrameBufferSourceTexture(FrameBufferAttachment::Depth, Texture2D);
+						framebuffer.depth = depth;
+					}
+				}
+				else
+				{
+					if (!depth)
+					{
+						depth = new FrameBufferSourceRenderBuffer(FrameBufferAttachment::Depth, RenderBufferFormat::Depth32F);
+						framebuffer.depth = depth;
+					}
+				}
+
+				framebuffer.bind(color_texture, depth_texture);
+				xrOpenGL->xrRender(i);
+				framebuffer.unbind();
+
+				colorSwapchain.release();
+				if (depthSwapchain) depthSwapchain->release();
+			}
+
+			xrOpenGL->update();
+
+			layer.space = appSpace;
+			layer.layerFlags = 0;
+			layer.viewCount = (uint32_t)colorViews.size();
+			layer.views = colorViews.data();
+			return true;
+		}
+
+		void render()
+		{
+			frame.wait();
+			frame.begin();
+
+			std::vector<XrCompositionLayerBaseHeader*> layers;
+			std::vector<XrCompositionLayerProjectionView> projectionLayerViews;
+			std::vector<XrCompositionLayerDepthInfoKHR> projectionLayerDepths;
+			XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
+
+			if (frame.should_render())
+				if (render_layer(frame.predicted_display_time(), projectionLayerViews, projectionLayerDepths, layer))
+					layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
+
+			frame.end(layers);
+		}
+
+		bool update()
+		{
+			poll_events();
+			if (exitRenderLoop)
+				return false;
+			update_actions();
+			render();
+			return true;
+		}
+	};
 }
