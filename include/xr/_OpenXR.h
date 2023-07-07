@@ -95,7 +95,7 @@ namespace OpenXR
 		{
 			std::vector<bool> valid(names.size());
 			std::transform(names.begin(), names.end(), valid.begin(),
-				[&](char const* name) {return check_extension(name);});
+				[&](char const* name) {return check_extension(name); });
 			return valid;
 		}
 	};
@@ -107,7 +107,7 @@ namespace OpenXR
 		std::vector<char const*> validExtensions;
 		bool enabledDepth;
 
-		Instance(char const* app_name = nullptr, std::vector<char const*> extraExtensions = {})
+		Instance(char const* app_name = nullptr, std::vector<char const*> extraExtensions = {}, bool _enableDepth = false)
 			:
 			instance(XR_NULL_HANDLE),
 			validExtensions({ XR_KHR_OPENGL_ENABLE_EXTENSION_NAME }),
@@ -121,11 +121,12 @@ namespace OpenXR
 
 			// not enable XR_KHR_composition_layer_depth by default
 			// since there may be performance issue when enabled
-			// extraExtensions.push_back(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+			if (_enableDepth)
+				extraExtensions.push_back(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
 			if (extraExtensions.size())
 			{
 				std::vector<bool> valid = extension.check_extensions(extraExtensions);
-				for (uint32_t c0(0);c0 < extraExtensions.size();++c0)
+				for (uint32_t c0(0); c0 < extraExtensions.size(); ++c0)
 				{
 					if (valid[c0])
 						validExtensions.push_back(extraExtensions[c0]);
@@ -134,7 +135,7 @@ namespace OpenXR
 			if (std::find_if(validExtensions.begin(), validExtensions.end(), [](char const* ext) {
 				if (std::strcmp(ext, XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) == 0)
 					return true;
-				return false;}) != validExtensions.end())
+				return false; }) != validExtensions.end())
 			{
 				enabledDepth = true;
 			}
@@ -2049,15 +2050,16 @@ namespace OpenXR
 		bool exitRenderLoop;
 		bool requestRestart;
 
-		OpenGL::FrameBufferSource* color;
-		OpenGL::FrameBufferSource* depth;
-		OpenGL::FrameBuffer framebuffer;
+		// todo: create validViewCount framebuffers
+		std::vector<OpenGL::FrameBufferSource*> colors;
+		std::vector<OpenGL::FrameBufferSource*> depths;
+		std::vector<OpenGL::FrameBuffer> framebuffers;
 
 		XrOpenGL* xrOpenGL;
 
-		XrRunner(GLFWwindow* _window)
+		XrRunner(GLFWwindow* _window, std::vector<char const*> extraExtensions = {}, bool _enable_depth = false)
 			:
-			instance("XrOS"),
+			instance("XrRunner", extraExtensions, _enable_depth),
 			system(&instance),
 			session(&system, _window),
 			frame(&session, XR_ENVIRONMENT_BLEND_MODE_OPAQUE),
@@ -2070,8 +2072,6 @@ namespace OpenXR
 			sessionRunning(false),
 			exitRenderLoop(false),
 			requestRestart(false),
-			color(nullptr),
-			depth(nullptr),
 			xrOpenGL(nullptr)
 		{
 			instance.printInfo();
@@ -2080,14 +2080,12 @@ namespace OpenXR
 			views.printViewConfig();
 			views.printViewInfo();
 			views.printSwapchainInfo();
-
-			framebuffer.create();
 		}
 
 		~XrRunner()
 		{
-			delete color;
-			delete depth;
+			for (auto color : colors)delete color;
+			for (auto depth : depths)delete depth;
 		}
 
 		virtual void bind_controllers() = 0;
@@ -2192,6 +2190,19 @@ namespace OpenXR
 			if (!views.locate(predictedDisplayTime, appSpace))
 				return false;
 
+			if (framebuffers.size() != views.validViewCount)
+			{
+				colors.resize(views.validViewCount);
+				depths.resize(views.validViewCount);
+				framebuffers.resize(views.validViewCount);
+				for (int i(0); i < views.validViewCount; ++i)
+				{
+					colors[i] = nullptr;
+					depths[i] = nullptr;
+					framebuffers[i].create();
+				}
+			}
+
 			before_render(predictedDisplayTime);
 			xrOpenGL->pullActions();
 
@@ -2206,17 +2217,11 @@ namespace OpenXR
 				// Each view has a separate swapchain which is acquired, rendered to, and released.
 
 				SwapchainImages& colorSwapchain = views.colorSwapchainImages[i];
-				SwapchainImages* depthSwapchain = nullptr;
-				if (enabledDepth)
-					depthSwapchain = &views.depthSwapchainImages[i];
 
 				uint32_t colorSwapchainImageIndex(0);
 				uint32_t depthSwapchainImageIndex(0);
 				colorSwapchain.acquire(&colorSwapchainImageIndex);
-				if (depthSwapchain) depthSwapchain->acquire(&depthSwapchainImageIndex);
-
 				colorSwapchain.wait();
-				if (depthSwapchain) depthSwapchain->wait();
 
 				colorViews[i] = { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW };
 				colorViews[i].pose = views.views[i].pose;
@@ -2226,65 +2231,75 @@ namespace OpenXR
 				colorViews[i].subImage.imageRect.offset = { 0, 0 };
 				colorViews[i].subImage.imageRect.extent = { colorSwapchain.width, colorSwapchain.height };
 
-				float nearZ = xrOpenGL->nearZ(i);
-				float farZ = xrOpenGL->farZ(i);
 
-				xrOpenGL->setProjMat(get_projection(views.views[i].fov, nearZ, farZ));
-				xrOpenGL->setViewMat(get_transform(views.views[i].pose, true));
-				xrOpenGL->setViewport(colorViews[i].subImage.imageRect);
-
-				// todo: prepare frame buffer
+				// prepare frame buffer
 				using namespace OpenGL;
 				GLuint color_texture(0), depth_texture(0);
-				if (!color)
+				float nearZ = xrOpenGL->nearZ(i);
+				float farZ = xrOpenGL->farZ(i);
+				if (!colors[i])
 				{
-					color = new FrameBufferSourceTexture(FrameBufferAttachment::Color0, Texture2D);
-					framebuffer.color = color;
+					colors[i] = new FrameBufferSourceTexture(FrameBufferAttachment::Color0, Texture2D);
+					framebuffers[i].color = colors[i];
 				}
 				color_texture = colorSwapchain.swapchainImages[colorSwapchainImageIndex].image;
 
-				if (depthSwapchain)
+				if (enabledDepth)
 				{
+					SwapchainImages& depthSwapchain = views.depthSwapchainImages[i];
+					depthSwapchain.acquire(&depthSwapchainImageIndex);
+					depthSwapchain.wait();
 					depthViews[i] = { XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR };
-					depthViews[i].subImage.swapchain = *depthSwapchain;
+					depthViews[i].subImage.swapchain = depthSwapchain;
 					// depthViews[i].subImage.imageArrayIndex = i; // 0 for ogl
 					depthViews[i].subImage.imageRect.offset = { 0, 0 };
-					depthViews[i].subImage.imageRect.extent = { depthSwapchain->width, depthSwapchain->height };
+					depthViews[i].subImage.imageRect.extent = { depthSwapchain.width, depthSwapchain.height };
 					depthViews[i].minDepth = 0.f;
 					depthViews[i].maxDepth = 1.f;
 					depthViews[i].nearZ = nearZ;
 					depthViews[i].farZ = farZ;
 					colorViews[i].next = &depthViews[i];
-					depth_texture = depthSwapchain->swapchainImages[depthSwapchainImageIndex].image;
-					if (depth)
+					depth_texture = depthSwapchain.swapchainImages[depthSwapchainImageIndex].image;
+					if (depths[i])
 					{
-						if (!depth->is_texture())
+						if (!depths[i]->is_texture())
 						{
-							delete depth;
-							depth = nullptr;
+							delete depths[i];
+							depths[i] = nullptr;
 						}
 					}
-					if (!depth)
+					if (!depths[i])
 					{
-						depth = new FrameBufferSourceTexture(FrameBufferAttachment::Depth, Texture2D);
-						framebuffer.depth = depth;
+						depths[i] = new FrameBufferSourceTexture(FrameBufferAttachment::Depth, Texture2D);
+						framebuffers[i].depth = depths[i];
 					}
 				}
 				else
 				{
-					if (!depth)
+					if (!depths[i])
 					{
-						depth = new FrameBufferSourceRenderBuffer(FrameBufferAttachment::Depth, RenderBufferFormat::Depth32F);
-						framebuffer.depth = depth;
+						depths[i] = new FrameBufferSourceRenderBuffer(FrameBufferAttachment::Depth, RenderBufferFormat::Depth32F);
+						framebuffers[i].depth = depths[i];
 					}
 				}
+				framebuffers[i].set_texture(color_texture, depth_texture);
+			}
 
-				framebuffer.bind(color_texture, depth_texture);
+			for (uint32_t i = 0; i < views.validViewCount; i++)
+			{
+				framebuffers[i].bind();
+				xrOpenGL->setProjMat(get_projection(views.views[i].fov, xrOpenGL->nearZ(i), xrOpenGL->farZ(i)));
+				xrOpenGL->setViewMat(get_transform(views.views[i].pose, true));
+				xrOpenGL->setViewport(colorViews[i].subImage.imageRect);
 				xrOpenGL->xrRender(i);
-				framebuffer.unbind();
+				framebuffers[i].unbind();
+			}
 
-				colorSwapchain.release();
-				if (depthSwapchain) depthSwapchain->release();
+			for (uint32_t i = 0; i < views.validViewCount; i++)
+			{
+				views.colorSwapchainImages[i].release();
+				if (enabledDepth)
+					views.depthSwapchainImages[i].release();
 			}
 
 			xrOpenGL->update();

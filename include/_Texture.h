@@ -503,12 +503,11 @@ namespace OpenGL
 			glGenFramebuffers(1, &frameBuffer);
 		}
 
-		void bind(GLuint color_texture = 0, GLuint depth_texture = 0, uint32_t color_layer = 0, uint32_t depth_layer = 0)
+		void set_texture(GLuint color_texture = 0, GLuint depth_texture = 0, uint32_t color_layer = 0, uint32_t depth_layer = 0)
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-
+			bind();
 			// make sure that we can get texture size and then pass to render buffer to resize
-			if(color->is_texture())
+			if (color->is_texture())
 			{
 				color->set_texture(color_texture);
 				color->bind(this, color_layer);
@@ -522,6 +521,13 @@ namespace OpenGL
 				color->set_texture(color_texture);
 				color->bind(this, color_layer);
 			}
+			unbind();
+		}
+
+		void bind()
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
 		}
 
 		void unbind()
