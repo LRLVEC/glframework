@@ -142,6 +142,17 @@ namespace GUI
 		wm.windows.begin->data.init(_openGL);
 	}
 
+	bool UserInterface::shouldExit()
+	{
+		return glfwWindowShouldClose(mainWindow->window.window);
+	}
+
+	void UserInterface::exit()
+	{
+		wm.closeAllButFirst();
+		wm.closeAll();
+	}
+
 	bool UserInterface::update()
 	{
 		// TODO: add multi thread support for rendering multiple window and their guis

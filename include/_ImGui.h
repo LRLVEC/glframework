@@ -240,6 +240,12 @@ namespace GUI
 		// bind OpenGL class to main window
 		void bindOpenGLMain(OpenGL::OpenGL* _openGL);
 
+		// whether the main window should be destroyed
+		bool shouldExit();
+
+		// exit
+		void exit();
+
 		// get inputs and update one frame for all windows, returns whether main window is alive, _interval is for glfwSwapInterval
 		bool update();
 
