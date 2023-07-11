@@ -144,6 +144,7 @@ namespace CUDA
 				cudaTextureDesc texDesc;
 				memset(&texDesc, 0, sizeof(texDesc));
 				texDesc.addressMode[0] = addressMode;
+				texDesc.addressMode[1] = addressMode;
 				texDesc.filterMode = filterMode;
 				texDesc.readMode = readMode;
 				texDesc.normalizedCoords = normalizedCoords;
