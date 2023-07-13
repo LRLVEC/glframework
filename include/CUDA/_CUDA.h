@@ -187,26 +187,25 @@ namespace CUDA
 			if (size != hostSize)::free(host);
 			if (size)host = ::malloc(hostSize = size);
 		}
-		void* map()
+		void* map(cudaStream_t stream = 0)
 		{
 			if (type == GLinterop)
 			{
-				CUDA_CHECK_THROW(cudaGraphicsMapResources(1, &graphics));
+				CUDA_CHECK_THROW(cudaGraphicsMapResources(1, &graphics, stream));
 				CUDA_CHECK_THROW(cudaGraphicsResourceGetMappedPointer(&device, &size, graphics));
 			}
 			return device;
 		}
-		void unmap()
+		void unmap(cudaStream_t stream = 0)
 		{
 			if (type == GLinterop)
 			{
 				if (graphics && device)
 				{
-					CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphics));
+					CUDA_CHECK_THROW(cudaGraphicsUnmapResources(1, &graphics, stream));
 					device = nullptr;
 				}
 			}
-			CUDA_CHECK_THROW(cudaStreamSynchronize(0));
 		}
 		void freeHost()
 		{
