@@ -686,6 +686,7 @@ namespace OpenGL
 
 		Transform2D();
 		Transform2D(Data const&);
+		void reset();
 		void init(FrameScale const&);
 		void resize(int, int);
 		void operate();
@@ -1432,6 +1433,12 @@ namespace OpenGL
 		scale(1.0),
 		updated(false)
 	{
+	}
+	inline void Transform2D::reset()
+	{
+		center = 0;
+		scale = 1;
+		updated = true;
 	}
 	inline void Transform2D::init(FrameScale const& _size)
 	{
