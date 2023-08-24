@@ -315,13 +315,15 @@ namespace OpenGL
 			glCreateVertexArrays(1, &vao);
 			attribs.traverse([](VertexAttrib*& _vertexAttrib)
 				{
-					_vertexAttrib->bind();
+					if (_vertexAttrib)
+						_vertexAttrib->bind();
 					return true;
 				});
 			bind();
 			attribs.traverse([](VertexAttrib*& _vertexAttrib)
 				{
-					_vertexAttrib->init();
+					if (_vertexAttrib)
+						_vertexAttrib->init();
 					return true;
 				});
 			unbind();
