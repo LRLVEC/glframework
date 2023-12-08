@@ -513,7 +513,8 @@ namespace OpenGL
 			};
 			struct Key
 			{
-				double ratio;
+				double translateRatio;
+				double spinRatio;
 			};
 
 			Perspective persp;
@@ -551,11 +552,15 @@ namespace OpenGL
 			bool right;
 			bool up;
 			bool down;
-			double ratio;
+			bool counterclockwise;
+			bool clockwise;
+			double translateRatio;
+			double spinRatio;
 			Key();
 			Key(Data::Key const&);
 			void refresh(int, bool);
 			Math::vec2<double>operate();
+			double operateSpin();
 		};
 		struct Mouse
 		{
@@ -1103,7 +1108,10 @@ namespace OpenGL
 		right(false),
 		up(false),
 		down(false),
-		ratio(0.05)
+		counterclockwise(false),
+		clockwise(false),
+		translateRatio(0.05),
+		spinRatio(0.005)
 	{
 	}
 	inline Transform::Key::Key(Data::Key const& _key)
@@ -1112,27 +1120,36 @@ namespace OpenGL
 		right(false),
 		up(false),
 		down(false),
-		ratio(_key.ratio)
+		counterclockwise(false),
+		clockwise(false),
+		translateRatio(_key.translateRatio),
+		spinRatio(_key.spinRatio)
 	{
 	}
 	inline void Transform::Key::refresh(int _key, bool _operation)
 	{
 		switch (_key)
 		{
-		case 0:left = _operation; break;
-		case 1:right = _operation; break;
-		case 2:up = _operation; break;
-		case 3:down = _operation; break;
+		case 0:left = _operation; break;             // A
+		case 1:right = _operation; break;            // D
+		case 2:up = _operation; break;               // W
+		case 3:down = _operation; break;             // S
+		case 4:counterclockwise = _operation; break; // Q
+		case 5:clockwise = _operation; break;        // E
 		}
 	}
 	inline Math::vec2<double> Transform::Key::operate()
 	{
 		Math::vec2<double>t
 		{
-			ratio * ((int)right - (int)left),
-			ratio * ((int)up - (int)down)
+			translateRatio * ((int)right - (int)left),
+			translateRatio * ((int)up - (int)down)
 		};
 		return t;
+	}
+	inline double Transform::Key::operateSpin()
+	{
+		return spinRatio * ((int)counterclockwise - (int)clockwise);
 	}
 
 	inline Transform::Mouse::Pointer::Pointer()
@@ -1258,11 +1275,17 @@ namespace OpenGL
 		Math::vec3<double>dxyz(key.operate());
 		dxyz.data[2] = -scroll.operate();
 		Math::vec2<double>axis(mouse.operate());
+		double spinAngle(key.operateSpin());
 		bool operated(false);
 		if (dxyz != 0.0)
 		{
 			dr -= dxyz;
 			trans.setCol(dr, 3);
+			operated = true;
+		}
+		if (spinAngle != 0.0)
+		{
+			trans = (Math::vec3<double>{0, 0, 1}.rotMat(spinAngle), trans);
 			operated = true;
 		}
 		if (axis != 0.0)

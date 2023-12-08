@@ -230,7 +230,7 @@ namespace OpenGL
 		NBodySingleViewRenderer(NBodyImplBase* _nbody, SourceManager* _sm)
 			:
 			nbody(_nbody),
-			trans({ {80.0,0.1,800},{0.8,0.8,0.1},{1},500.0 }),
+			trans({ {80.0,0.1,800},{0.8,0.8,0.1},{1, 0.05},500.0 }),
 			renderer(_sm, &nbody->nbodyData->particlesArray, &trans)
 		{
 		}
@@ -293,6 +293,8 @@ namespace OpenGL
 			case GLFW_KEY_D:trans.key.refresh(1, _action); break;
 			case GLFW_KEY_W:trans.key.refresh(2, _action); break;
 			case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+			case GLFW_KEY_Q:trans.key.refresh(4, _action); break;
+			case GLFW_KEY_E:trans.key.refresh(5, _action); break;
 			}
 		}
 	};
@@ -353,14 +355,14 @@ namespace OpenGL
 			mainWindow = _window;
 			FrameScale size;
 			glfwGetWindowSize(_window, &size.w, &size.h);
-			transforms[_window] = new Transform({ {80.0,0.1,800},{0.8,0.8,0.1},{1},500.0 });
+			transforms[_window] = new Transform({ {80.0,0.1,800},{0.8,0.8,0.1},{1, 0.05},500.0 });
 			// transforms[_window]->init(size);
 		}
 		void registerTransform(GLFWwindow* _window)
 		{
 			FrameScale size;
 			glfwGetWindowSize(_window, &size.w, &size.h);
-			transforms[_window] = new Transform({ {80.0,0.1,800},{0.8,0.8,0.1},{1},500.0 });
+			transforms[_window] = new Transform({ {80.0,0.1,800},{0.8,0.8,0.1},{1, 0.05},500.0 });
 			transforms[_window]->init(size);
 		}
 		void unregisterTransform(GLFWwindow* _window)
@@ -515,6 +517,8 @@ namespace OpenGL
 			case GLFW_KEY_D:trans->key.refresh(1, _action); break;
 			case GLFW_KEY_W:trans->key.refresh(2, _action); break;
 			case GLFW_KEY_S:trans->key.refresh(3, _action); break;
+			case GLFW_KEY_Q:trans->key.refresh(4, _action); break;
+			case GLFW_KEY_E:trans->key.refresh(5, _action); break;
 			}
 		}
 	};
@@ -971,7 +975,7 @@ namespace OpenGL
 				particlesBuffer(&particlesData),
 				hmd(false),
 				vrTrans(&hmd, { 0.01, 30 }),
-				trans({ {80.0,0.1,800},{0.01,0.9,0.001},{0.01},500.0 }),
+				trans({ {80.0,0.1,800},{0.01,0.9,0.001},{0.01, 0.05},500.0 }),
 				renderer(&sm, &particlesBuffer, &trans, &vrTrans, &hmd),
 				computeParticles(&sm, &particlesBuffer, &particles)
 			{
@@ -1040,6 +1044,8 @@ namespace OpenGL
 				case GLFW_KEY_D:trans.key.refresh(1, _action); break;
 				case GLFW_KEY_W:trans.key.refresh(2, _action); break;
 				case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+				case GLFW_KEY_Q:trans.key.refresh(4, _action); break;
+				case GLFW_KEY_E:trans.key.refresh(5, _action); break;
 		}
 	}
 };
@@ -1300,7 +1306,7 @@ namespace OpenGL
 				particlesBuffer(&particlesData),
 				hmd(false),
 				vrTrans(&hmd, { 0.01, 30 }),
-				trans({ {80.0,0.01,30},{0.01,0.8,0.001},{0.01},500.0 }),
+				trans({ {80.0,0.01,30},{0.01,0.8,0.001},{0.01, 0.05},500.0 }),
 				renderer(&sm, &particlesBuffer, &trans, &vrTrans, &hmd),
 				particlesBufferCUDA(CUDA::Buffer::GLinterop),
 				glue(_blocks, 0.00001f, 0.001f)
@@ -1398,6 +1404,8 @@ namespace OpenGL
 				case GLFW_KEY_D:trans.key.refresh(1, _action); break;
 				case GLFW_KEY_W:trans.key.refresh(2, _action); break;
 				case GLFW_KEY_S:trans.key.refresh(3, _action); break;
+				case GLFW_KEY_Q:trans.key.refresh(4, _action); break;
+				case GLFW_KEY_E:trans.key.refresh(5, _action); break;
 	}
 			}
 		};
