@@ -366,9 +366,10 @@ namespace OpenGL
 
 		Vector<Source> sources;
 		File folder;
+		String<char> suffix;
 
-		SourceManager();
-		SourceManager(String<char> const&);
+		SourceManager(char const* _suffix = ".cpp");
+		SourceManager(String<char> const&, char const* _suffix = ".cpp");
 		void readSource();
 		void deleteSource();
 		Source& getProgram(String<char>const&);
@@ -944,18 +945,19 @@ namespace OpenGL
 
 
 
-	inline SourceManager::SourceManager()
+	inline SourceManager::SourceManager(char const* _suffix)
 		:
-
 		folder("./"),
-		sources()
+		sources(),
+		suffix(_suffix)
 	{
 		readSource();
 	}
-	inline SourceManager::SourceManager(String<char> const& _path)
+	inline SourceManager::SourceManager(String<char> const& _path, char const* _suffix)
 		:
 		folder(_path),
-		sources()
+		sources(),
+		suffix(_suffix)
 	{
 		readSource();
 	}
@@ -994,7 +996,7 @@ namespace OpenGL
 				s = sscanf(ShaderLists.data + n, "%s%s%n%*[\t\r\n ]%[}]", t0, t1, &delta, t2);
 				n += delta;
 				if (s < 2)break;
-				if (!sources.end().addSource(t0, shaders.findInThis(program + t0 + t1 + ".cpp").readText()))
+				if (!sources.end().addSource(t0, shaders.findInThis(program + t0 + t1 + suffix).readText()))
 					::printf("Cannot read Program: %s\n", program.data);
 			} while (s == 2);
 		}
