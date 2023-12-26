@@ -366,10 +366,11 @@ namespace OpenGL
 
 		Vector<Source> sources;
 		File folder;
-		String<char> suffix;
+		Vector<String<char>> suffixes;
 
 		SourceManager(char const* _suffix = ".cpp");
 		SourceManager(String<char> const&, char const* _suffix = ".cpp");
+		SourceManager(String<char> const&, Vector<String<char>>const& _suffixes);
 		void readSource();
 		void deleteSource();
 		Source& getProgram(String<char>const&);
@@ -594,6 +595,19 @@ namespace OpenGL
 			virtual unsigned int size()override
 			{
 				return sizeof(ans);
+			}
+		};
+		struct ViewBufferData : Buffer::Data
+		{
+			Math::mat4<float>world2cam;
+			ViewBufferData();
+			virtual void* pointer()override
+			{
+				return (void*)(world2cam.array);
+			}
+			virtual unsigned int size()override
+			{
+				return sizeof(world2cam);
 			}
 		};
 
@@ -949,7 +963,7 @@ namespace OpenGL
 		:
 		folder("./"),
 		sources(),
-		suffix(_suffix)
+		suffixes({ String<char>(_suffix) })
 	{
 		readSource();
 	}
@@ -957,7 +971,15 @@ namespace OpenGL
 		:
 		folder(_path),
 		sources(),
-		suffix(_suffix)
+		suffixes({ String<char>(_suffix) })
+	{
+		readSource();
+	}
+	inline SourceManager::SourceManager(String<char> const& _path, Vector<String<char>>const& _suffixes)
+		:
+		folder(_path),
+		sources(),
+		suffixes(_suffixes)
 	{
 		readSource();
 	}
@@ -996,7 +1018,20 @@ namespace OpenGL
 				s = sscanf(ShaderLists.data + n, "%s%s%n%*[\t\r\n ]%[}]", t0, t1, &delta, t2);
 				n += delta;
 				if (s < 2)break;
-				if (!sources.end().addSource(t0, shaders.findInThis(program + t0 + t1 + suffix).readText()))
+				bool found = false;
+				for (int suffix_id(0); suffix_id < suffixes.length; suffix_id++)
+				{
+					auto& source_file = shaders.findInThis(program + t0 + t1 + suffixes[suffix_id]);
+					if (!&source_file)
+						continue;
+					else
+					{
+						found = true;
+						sources.end().addSource(t0, source_file.readText());
+						break;
+					}
+				}
+				if (!found)
 					::printf("Cannot read Program: %s\n", program.data);
 			} while (s == 2);
 		}
@@ -1218,6 +1253,10 @@ namespace OpenGL
 	}
 
 	inline Transform::BufferData::BufferData()
+		:Data(DynamicDraw)
+	{
+	}
+	inline Transform::ViewBufferData::ViewBufferData()
 		:Data(DynamicDraw)
 	{
 	}

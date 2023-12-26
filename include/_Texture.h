@@ -141,6 +141,10 @@ namespace OpenGL
 		RGBA16ui = GL_RGBA16UI,
 		RGBA32i = GL_RGBA32I,
 		RGBA32ui = GL_RGBA32UI,
+		Depth16 = GL_DEPTH_COMPONENT16,
+		Depth24 = GL_DEPTH_COMPONENT24,
+		Depth32 = GL_DEPTH_COMPONENT32,
+		Depth32f = GL_DEPTH_COMPONENT32F
 	};
 	enum TextureInputFormat
 	{
@@ -503,7 +507,43 @@ namespace OpenGL
 			glGenFramebuffers(1, &frameBuffer);
 		}
 
-		void set_texture(GLuint color_texture = 0, GLuint depth_texture = 0, uint32_t color_layer = 0, uint32_t depth_layer = 0)
+		void set_texture()
+		{
+			bind();
+			if (color->is_texture())
+			{
+				color->bind(this, 0);
+				if (depth)
+					depth->bind(this, 0);
+			}
+			else
+			{
+				color->bind(this, 0);
+				if (depth)
+					depth->bind(this, 0);
+			}
+			unbind();
+		}
+
+		void set_texture_layer(uint32_t color_layer, uint32_t depth_layer = 0)
+		{
+			bind();
+			if (color->is_texture())
+			{
+				color->bind(this, color_layer);
+				if (depth)
+					depth->bind(this, depth_layer);
+			}
+			else
+			{
+				color->bind(this, color_layer);
+				if (depth)
+					depth->bind(this, depth_layer);
+			}
+			unbind();
+		}
+
+		void set_texture(GLuint color_texture, GLuint depth_texture = 0, uint32_t color_layer = 0, uint32_t depth_layer = 0)
 		{
 			bind();
 			// make sure that we can get texture size and then pass to render buffer to resize
@@ -511,13 +551,19 @@ namespace OpenGL
 			{
 				color->set_texture(color_texture);
 				color->bind(this, color_layer);
-				depth->set_texture(depth_texture);
-				depth->bind(this, depth_layer);
+				if (depth)
+				{
+					depth->set_texture(depth_texture);
+					depth->bind(this, depth_layer);
+				}
 			}
 			else
 			{
-				depth->set_texture(depth_texture);
-				depth->bind(this, depth_layer);
+				if (depth)
+				{
+					depth->set_texture(depth_texture);
+					depth->bind(this, depth_layer);
+				}
 				color->set_texture(color_texture);
 				color->bind(this, color_layer);
 			}
@@ -527,7 +573,6 @@ namespace OpenGL
 		void bind()
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-
 		}
 
 		void unbind()
@@ -602,7 +647,7 @@ namespace OpenGL
 				renderBuffer.allocData(_frameBuffer->width, _frameBuffer->height);
 			renderBuffer.attach(attachment);
 		}
-		
+
 		bool is_texture()const
 		{
 			return false;
