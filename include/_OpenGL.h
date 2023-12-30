@@ -1186,7 +1186,7 @@ namespace OpenGL
 	}
 	inline double Transform::Key::operateSpin()
 	{
-		return spinRatio * ((int)counterclockwise - (int)clockwise);
+		return spinRatio * ((int)clockwise - (int)counterclockwise);
 	}
 
 	inline Transform::Mouse::Pointer::Pointer()
