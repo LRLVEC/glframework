@@ -52,7 +52,7 @@ __global__ void velocityCalc_Optimize1(NBodyCUDAParticle* particles)
 		for (int c1(0); c1 < blockDim.x; ++c1)
 		{
 			float3 dr = posM[c1].position - r;
-			float drr = rsqrtf(dr.x * dr.x + dr.y * dr.y + dr.z * dr.z + 0.00001f);
+			float drr = rsqrtf(clamp(dot(dr, dr), 0.0001f, 10000000.f));
 			// float drr = rsqrtf(dr.x * dr.x + dr.y * dr.y + dr.z * dr.z + 0.00000001f);
 			drr = drr * drr * drr;
 			dv += (posM[c1].mass * drr) * dr;
@@ -98,8 +98,8 @@ NBodyCUDA_Glue::NBodyCUDA_Glue(unsigned int _blocks, float _dt, float _G)
 }
 void NBodyCUDA_Glue::run()
 {
-	positionCalc << < dim3(blocks, 1, 1), dim3(1024, 1, 1), 0, stream >> > (particles);
 	velocityCalc_Optimize1 << < dim3(blocks, 1, 1), dim3(1024, 1, 1), 0, stream >> > (particles);
+	positionCalc << < dim3(blocks, 1, 1), dim3(1024, 1, 1), 0, stream >> > (particles);
 	cudaStreamSynchronize(stream);
 }
 void NBodyCUDA_Glue::experiment(ExpData* expData)

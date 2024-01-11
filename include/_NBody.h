@@ -597,7 +597,7 @@ namespace OpenGL
 			ComputeParticles(SourceManager* _sm, Buffer* _particlesBuffer, NBodyData::Particles* _particles)
 				:
 				particlesStorage(_particlesBuffer, ShaderStorageBuffer, 1),
-				parameterData({ 0.005f,0.001f,_particles->num }),
+				parameterData({ 0.0005f,0.001f,_particles->num }),
 				parameterBuffer(&parameterData),
 				parameterUniform(&parameterBuffer, UniformBuffer, 3),
 				velocityCalculation(_sm, &parameterData),
