@@ -1327,6 +1327,7 @@ namespace OpenGL
 		if (spinAngle != 0.0)
 		{
 			trans = (Math::vec3<double>{0, 0, 1}.rotMat(spinAngle), trans);
+			dr = trans.column(3);
 			operated = true;
 		}
 		if (axis != 0.0)
