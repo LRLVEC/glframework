@@ -235,7 +235,7 @@ namespace OpenGL
 			UInt = GL_UNSIGNED_INT,
 			HalfFloat = GL_HALF_FLOAT,
 			Float = GL_FLOAT,
-			Doule = GL_DOUBLE,
+			Double = GL_DOUBLE,
 			Fixed = GL_FIXED,
 			Int_2_10_10_10 = GL_INT_2_10_10_10_REV,
 			UINT_2_10_10_10 = GL_UNSIGNED_INT_2_10_10_10_REV,
@@ -280,7 +280,16 @@ namespace OpenGL
 		{
 			buffer->bind();
 			enable();
-			glVertexAttribPointer(binding, size, type, normalized, stride, (void const*)offset);
+			switch (type)
+			{
+			case HalfFloat:
+			case Float:
+			case Double:
+				glVertexAttribPointer(binding, size, type, normalized, stride, (void const*)offset);
+				break;
+			default:
+				glVertexAttribIPointer(binding, size, type, stride, (void const*)offset);
+			}
 			if (divisor)
 				glVertexAttribDivisor(binding, divisor);
 		}
@@ -1258,7 +1267,7 @@ namespace OpenGL
 	{
 	}
 	inline Transform::ViewBufferData::ViewBufferData()
-		:Data(DynamicDraw)
+		: Data(DynamicDraw)
 	{
 	}
 
