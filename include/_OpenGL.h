@@ -117,6 +117,7 @@ namespace OpenGL
 			Usage usage;
 			virtual void* pointer() = 0;
 			virtual unsigned int size() = 0;
+			virtual ~Data() {}
 			Data()
 				:
 				usage(StaticDraw)

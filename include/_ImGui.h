@@ -11,6 +11,7 @@ namespace GUI
 	struct GuiBlock
 	{
 		virtual void gui() = 0;
+		virtual ~GuiBlock() {}
 	};
 }
 
